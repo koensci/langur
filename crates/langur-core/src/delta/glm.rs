@@ -140,6 +140,7 @@ fn is_utr_event(ev: &GlmEventData) -> bool {
     matches!(ev.etype.as_str(), "TS" | "TE")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn test_single_event_with_matrices(
     ev: &GlmEventData,
     design: &DesignSpec,
@@ -225,14 +226,13 @@ fn test_single_event_with_matrices(
         let mut sum_mu_a = 0.0;
         let mut sum_mu_b = 0.0;
         let mut n_ab = 0usize;
-        for j in 0..m {
-            let s_orig = ev.valid_idx[j];
+        for (j, &s_orig) in ev.valid_idx.iter().enumerate() {
             if !design.group_a_mask[s_orig] && !design.group_b_mask[s_orig] {
                 continue;
             }
             let mut eta_base = 0.0;
-            for c in 0..p0 {
-                eta_base += x_full.get(j, c) * fit_full.beta[c];
+            for (c, &beta_c) in fit_full.beta.iter().enumerate().take(p0) {
+                eta_base += x_full.get(j, c) * beta_c;
             }
             sum_mu_b += logistic(eta_base);
             sum_mu_a += logistic(eta_base + fit_full.beta[t_pos]);
@@ -252,8 +252,8 @@ fn test_single_event_with_matrices(
             let mut sum_slope = 0.0;
             for j in 0..m {
                 let mut eta = 0.0;
-                for c in 0..p_full {
-                    eta += x_full.get(j, c) * fit_full.beta[c];
+                for (c, &beta_c) in fit_full.beta.iter().enumerate().take(p_full) {
+                    eta += x_full.get(j, c) * beta_c;
                 }
                 let mu = logistic(eta);
                 sum_slope += mu * (1.0 - mu) * log_odds;
@@ -339,7 +339,7 @@ pub fn fit_glm_cohort(
     // Check whether any event has residual degrees of freedom (m > p)
     let has_replicates = events.iter().any(|ev| {
         build_event_matrices(&design.x, &ev.valid_idx, &design.test_cols)
-            .map_or(false, |(xf, _, _, _)| ev.valid_idx.len() > xf.cols)
+            .is_some_and(|(xf, _, _, _)| ev.valid_idx.len() > xf.cols)
     });
 
     if !has_replicates {
@@ -678,12 +678,15 @@ pub fn output_diff_glm(
     Ok(())
 }
 
+/// Return bundle for [`process_psi_files_glm`].
+pub type CohortGlmOutput = (Vec<GlmEventData>, Vec<GlmResult>, Vec<f64>, EbPriorSummary);
+
 /// High-level entry point called by `langur delta`.
 pub fn process_psi_files_glm(
     outfile: &Path,
     design: &DesignSpec,
     opts: &GlmOptions,
-) -> Result<(Vec<GlmEventData>, Vec<GlmResult>, Vec<f64>, EbPriorSummary)> {
+) -> Result<CohortGlmOutput> {
     let events = read_psi_cohort(design, &opts.cohort)?;
     let (results, fdr, prior) = fit_glm_cohort(&events, design, opts);
     output_diff_glm(outfile, &events, &results, &fdr, design)?;

@@ -392,7 +392,7 @@ pub fn sample_complex_event_gibbs(
             pi.fill(unif);
         }
 
-        if sweep >= burn_in && (sweep - burn_in) % thin_step == 0 {
+        if sweep >= burn_in && (sweep - burn_in).is_multiple_of(thin_step) {
             let psi_b: f64 = pi[..n_inc].iter().sum::<f64>().clamp(0.0, 1.0);
             psi_draws.push(psi_b);
         }

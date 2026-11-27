@@ -121,12 +121,14 @@ pub fn run(args: QuantArgs) -> Result<()> {
         StrandMode::Unstranded
     };
 
-    let mut align_cfg = AlignConfig::default();
-    align_cfg.strand_mode = strand_mode;
-    align_cfg.allow_circ = args.circ;
-    align_cfg.pair_is_rc = !args.pair_same_strand;
-    align_cfg.max_frag_len = args.max_frag_len;
-    align_cfg.min_score_frac = args.score_min;
+    let align_cfg = AlignConfig {
+        strand_mode,
+        allow_circ: args.circ,
+        pair_is_rc: !args.pair_same_strand,
+        max_frag_len: args.max_frag_len,
+        min_score_frac: args.score_min,
+        ..Default::default()
+    };
 
     let vbem_cfg = VbemConfig {
         vb_prior: args.vb_prior,

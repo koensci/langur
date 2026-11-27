@@ -20,7 +20,7 @@ pub const ASCII_TO_2BIT: [u8; 256] = {
 };
 
 /// Lookup table mapping 2-bit value (0..=3) -> uppercase ASCII base.
-pub const TWOBIT_TO_ASCII: [u8; 4] = [b'A', b'C', b'G', b'T'];
+pub const TWOBIT_TO_ASCII: [u8; 4] = *b"ACGT";
 
 /// Lookup table mapping ASCII byte -> uppercase normalized ASCII (`A/C/G/T`, or `N` for ambiguous/other).
 pub const ASCII_NORM: [u8; 256] = {
@@ -130,17 +130,16 @@ fn ascii_to_2bit_safe(b: u8) -> u8 {
 
 pub fn pack_2bit_append(seq: &[u8], dst: &mut Vec<u8>) -> usize {
     let start_len = dst.len();
-    let n_bytes = (seq.len() + 3) / 4;
+    let n_bytes = seq.len().div_ceil(4);
     dst.reserve(n_bytes);
-    let mut chunks = seq.chunks_exact(4);
-    for ch in &mut chunks {
+    let (chunks, rem) = seq.as_chunks::<4>();
+    for ch in chunks {
         let b0 = ascii_to_2bit_safe(ch[0]);
         let b1 = ascii_to_2bit_safe(ch[1]);
         let b2 = ascii_to_2bit_safe(ch[2]);
         let b3 = ascii_to_2bit_safe(ch[3]);
         dst.push(b0 | (b1 << 2) | (b2 << 4) | (b3 << 6));
     }
-    let rem = chunks.remainder();
     if !rem.is_empty() {
         let mut byte = 0u8;
         for (i, &b) in rem.iter().enumerate() {
@@ -254,7 +253,7 @@ pub fn extract_minimizers(
     hash_bits: u32,
     out: &mut Vec<Minimizer>,
 ) {
-    debug_assert!(k >= 1 && k <= 31 && k % 2 == 1, "k must be odd in 1..=31");
+    debug_assert!((1..=31).contains(&k) && k % 2 == 1, "k must be odd in 1..=31");
     debug_assert!(w >= 1);
     out.clear();
     if seq.len() < k {

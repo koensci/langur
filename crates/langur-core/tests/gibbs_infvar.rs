@@ -175,7 +175,7 @@ fn test_end_to_end_k1_closed_form_k2_gibbs_and_thread_determinism() {
     // - G_COMPLEX: 4 exons (E1-E2-E3-E4, E1-E2-E4, E1-E3-E4, E1-E4) -> K_2 CE event on node 2
     //   sharing edge E3->E4 across inclusion & exclusion!
     let mut state: u64 = 0x517C_C1B7_2722_0A95;
-    let bases = [b'A', b'C', b'G', b'T'];
+    let bases = *b"ACGT";
     let mut chrom = vec![b'A'; 12_000];
     for b in &mut chrom {
         state ^= state << 13;

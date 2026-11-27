@@ -342,6 +342,7 @@ pub fn write_sam_header<W: Write>(w: &mut W, idx: &MmapIndex) -> Result<()> {
 /// Format a single `ReadAlignment` as a valid SAMv1 record line.
 /// Sets FLAG `0x10` based on true genomic strand (`pos_strand != aln.read_is_sense`) and
 /// emits reverse-complemented `SEQ` + reversed `QUAL` whenever aligned to the genomic `-` strand.
+#[allow(clippy::too_many_arguments)]
 pub fn format_sam_line(
     idx: &MmapIndex,
     qname: &[u8],

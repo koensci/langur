@@ -101,7 +101,8 @@ pub fn quantify_all_events(
         }
     }
 
-    let mut gene_edges_map: FxHashMap<u32, Vec<(u16, u16, f64, u32, u32)>> = FxHashMap::default();
+    type GeneEdgeMap = FxHashMap<u32, Vec<(u16, u16, f64, u32, u32)>>;
+    let mut gene_edges_map: GeneEdgeMap = FxHashMap::default();
     for (&(gid, u, v), &(cnt, dpos, mstack)) in final_edges {
         if cnt > 0.0 {
             gene_edges_map

@@ -90,7 +90,9 @@ impl SimpleRng {
     }
 }
 
-fn write_psi_gz_fixture(path: &Path, rows: &[(&str, u32, &str, Option<f64>, f64, Option<f64>)]) {
+type FixturePsiRow<'a> = (&'a str, u32, &'a str, Option<f64>, f64, Option<f64>);
+
+fn write_psi_gz_fixture(path: &Path, rows: &[FixturePsiRow<'_>]) {
     let f = std::fs::File::create(path).unwrap();
     let mut enc = GzEncoder::new(f, Compression::fast());
     writeln!(

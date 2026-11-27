@@ -159,16 +159,16 @@ pub fn cholesky_solve(l: &Matrix, b: &[f64]) -> Vec<f64> {
     let mut y = vec![0.0; p];
     for i in 0..p {
         let mut s = b[i];
-        for k in 0..i {
-            s -= l.get(i, k) * y[k];
+        for (k, &yk) in y.iter().enumerate().take(i) {
+            s -= l.get(i, k) * yk;
         }
         y[i] = s / l.get(i, i);
     }
     let mut x = vec![0.0; p];
     for i in (0..p).rev() {
         let mut s = y[i];
-        for k in (i + 1)..p {
-            s -= l.get(k, i) * x[k];
+        for (k, &xk) in x.iter().enumerate().skip(i + 1) {
+            s -= l.get(k, i) * xk;
         }
         x[i] = s / l.get(i, i);
     }
@@ -202,12 +202,8 @@ pub fn matrix_rank_pivoted_qr(a: &Matrix) -> usize {
         // Pivot: choose column >= k with maximum residual 2-norm squared in rows k..m
         let mut best_c = k;
         let mut best_norm2 = -1.0f64;
-        for c in k..p {
-            let mut n2 = 0.0;
-            for r in k..m {
-                let v = cols[c][r];
-                n2 += v * v;
-            }
+        for (c, col) in cols.iter().enumerate().skip(k) {
+            let n2: f64 = col[k..m].iter().map(|&v| v * v).sum();
             if n2 > best_norm2 {
                 best_norm2 = n2;
                 best_c = c;
@@ -230,9 +226,7 @@ pub fn matrix_rank_pivoted_qr(a: &Matrix) -> usize {
         // Householder vector v stored in cols[k][k..m]
         let mut v = vec![0.0; m - k];
         v[0] = x0 - alpha;
-        for r in (k + 1)..m {
-            v[r - k] = cols[k][r];
-        }
+        v[1..(m - k)].copy_from_slice(&cols[k][(k + 1)..m]);
         let v_norm2: f64 = v.iter().map(|&val| val * val).sum();
         if v_norm2 <= 1e-30 {
             continue;
@@ -240,14 +234,14 @@ pub fn matrix_rank_pivoted_qr(a: &Matrix) -> usize {
         let beta = 2.0 / v_norm2;
 
         // Apply reflection to remaining columns k..p
-        for c in k..p {
+        for col in cols.iter_mut().skip(k) {
             let mut dot = 0.0;
-            for idx in 0..(m - k) {
-                dot += v[idx] * cols[c][k + idx];
+            for (idx, &vi) in v.iter().enumerate() {
+                dot += vi * col[k + idx];
             }
             let scale = beta * dot;
-            for idx in 0..(m - k) {
-                cols[c][k + idx] -= scale * v[idx];
+            for (idx, &vi) in v.iter().enumerate() {
+                col[k + idx] -= scale * vi;
             }
         }
     }
@@ -291,6 +285,7 @@ pub struct BetaFit {
 
 /// Fit `beta` for fixed precision `M` using damped Fisher scoring (IRLS) with light ridge
 /// regularization for stability under complete separation (`0.0` vs `1.0` PSI).
+#[allow(clippy::too_many_arguments)]
 pub fn fit_bb_beta(
     k: &[f64],
     r: &[f64],

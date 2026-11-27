@@ -119,9 +119,9 @@ pub fn align_single_read(
         };
         if let Some(aln) = extend_gene_candidate(idx, cand, q, q_has_n, cfg, &mut scratch.work) {
             if aln.score >= min_score {
-                if aln.score > best_score {
-                    best_hit_count = cand.hit_count;
-                } else if aln.score == best_score && cand.hit_count > best_hit_count {
+                if aln.score > best_score
+                    || (aln.score == best_score && cand.hit_count > best_hit_count)
+                {
                     best_hit_count = cand.hit_count;
                 }
                 push_scored_alignment(
@@ -306,7 +306,7 @@ pub fn extend_gene_candidate(
 
         if let Some(aln) = aln_opt {
             let is_perfect = aln.score >= max_possible;
-            if best.as_ref().map_or(true, |b| aln.score > b.score) {
+            if best.as_ref().is_none_or(|b| aln.score > b.score) {
                 best = Some(aln);
             }
             if is_perfect {
@@ -1495,7 +1495,7 @@ fn flank_matches_acceptor(
         return rem_slice
             .first()
             .copied()
-            .map_or(false, |b| ASCII_NORM[b as usize] == b'N');
+            .is_some_and(|b| ASCII_NORM[b as usize] == b'N');
     }
     let Some((compared, mm)) = nd.acceptor_flank_mismatches(q_msb, cmp_req) else {
         return true;
@@ -1524,7 +1524,7 @@ fn flank_matches_donor(
         return rem_slice
             .last()
             .copied()
-            .map_or(false, |b| ASCII_NORM[b as usize] == b'N');
+            .is_some_and(|b| ASCII_NORM[b as usize] == b'N');
     }
     let Some((compared, mm)) = nd.donor_flank_mismatches(q_lsb, cmp_req) else {
         return true;

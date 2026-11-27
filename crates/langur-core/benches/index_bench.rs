@@ -14,7 +14,7 @@ use langur_core::seq::extract_minimizers;
 fn synthetic_dataset(num_genes: usize) -> (Vec<u8>, String) {
     // Deterministic pseudo-random DNA chromosome with `num_genes` multi-exon genes
     let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
-    let bases = [b'A', b'C', b'G', b'T'];
+    let bases = *b"ACGT";
     let chrom_len = num_genes * 1200 + 2000;
     let mut chrom = Vec::with_capacity(chrom_len);
     for _ in 0..chrom_len {

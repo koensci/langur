@@ -252,6 +252,7 @@ fn siphon_bs_row(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn finalize_event_from_samples(
     design: &DesignSpec,
     opts: &CohortReadOptions,

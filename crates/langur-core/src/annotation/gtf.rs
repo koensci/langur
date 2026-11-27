@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct GtfOptions {
     /// If true, only transcripts carrying `tag "basic"` define `txst`/`txen`/`reftx`,
     /// while non-basic transcripts still contribute splice sites (`don`, `acc`).
@@ -16,15 +16,6 @@ pub struct GtfOptions {
     /// If true (and `!basic_or_ss_only`), skip exons whose `transcript_support_level`
     /// is neither missing (`_`/`NA`) nor `1`/`2`.
     pub suppress_low_tsl: bool,
-}
-
-impl Default for GtfOptions {
-    fn default() -> Self {
-        Self {
-            basic_or_ss_only: false,
-            suppress_low_tsl: false,
-        }
-    }
 }
 
 /// Annotated reference transcript within a gene.
@@ -476,11 +467,7 @@ fn parse_gtf_attributes(s: &str) -> ParsedAttrs<'_> {
             "transcript_id" => out.transcript_id = Some(val),
             "gene_name" => out.gene_name = Some(val),
             "transcript_support_level" => out.tsl = Some(val),
-            "tag" => {
-                if val == "basic" {
-                    out.is_basic = true;
-                }
-            }
+            "tag" if val == "basic" => out.is_basic = true,
             _ => {}
         }
     }

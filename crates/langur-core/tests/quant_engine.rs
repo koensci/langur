@@ -23,7 +23,7 @@ use langur_core::seq::revcomp;
 
 fn pseudo_dna(seed: u64, len: usize) -> Vec<u8> {
     let mut s = seed;
-    let bases = [b'A', b'C', b'G', b'T'];
+    let bases = *b"ACGT";
     let mut out = Vec::with_capacity(len);
     for _ in 0..len {
         s ^= s >> 12;

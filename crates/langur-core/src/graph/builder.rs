@@ -119,9 +119,9 @@ pub fn build_splice_graph(gene: &RefGene, chrom_seq: &[u8]) -> Result<BuiltSplic
         ];
         let mut best_i = 0;
         let mut best_v = vals[0];
-        for i in 1..4 {
-            if vals[i] < best_v {
-                best_v = vals[i];
+        for (i, &v) in vals.iter().enumerate().skip(1) {
+            if v < best_v {
+                best_v = v;
                 best_i = i;
             }
         }

@@ -173,6 +173,7 @@ impl ReadAlignment {
 
 /// Outcome of aligning a single-end read (including decoy screening status).
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum SingleAlignOutcome {
     Unmapped,
     DecoyFiltered,
@@ -201,6 +202,7 @@ pub struct PairedAlignment {
 
 /// Outcome of aligning a paired-end read pair.
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum PairedAlignOutcome {
     Unmapped,
     DecoyFiltered,

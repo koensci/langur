@@ -191,11 +191,11 @@ pub fn parse_formula_terms(formula: &str) -> Result<Vec<Vec<String>>> {
                     "interaction order too high ({k}) in '{part}'"
                 )));
             }
-            for mask in 1usize..((1usize << k)) {
+            for mask in 1usize..(1usize << k) {
                 let mut sub = Vec::new();
-                for bit in 0..k {
+                for (bit, factor) in factors.iter().enumerate() {
                     if ((mask >> bit) & 1) == 1 {
-                        sub.push(factors[bit].clone());
+                        sub.push(factor.clone());
                     }
                 }
                 add_term(sub);

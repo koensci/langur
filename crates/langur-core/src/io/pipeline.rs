@@ -223,8 +223,7 @@ pub fn quantify_sample(idx: &MmapIndex, cfg: &QuantConfig) -> Result<QuantSummar
             },
         );
 
-        let mut wave_idx: usize = 0;
-        for wave_res in rx_wave {
+        for (wave_idx, wave_res) in rx_wave.into_iter().enumerate() {
             let wave = wave_res?;
             let pw_ref: Option<&[f64]> = locked_primer.as_deref();
             let wave_results: Vec<(QuantShard, Vec<String>)> = wave
@@ -240,7 +239,6 @@ pub fn quantify_sample(idx: &MmapIndex, cfg: &QuantConfig) -> Result<QuantSummar
                 reduced.0.collapse_wave0_hexamers(&w0_model.primer_weight);
                 locked_primer = Some(w0_model.primer_weight);
             }
-            wave_idx += 1;
             if tx_merge.send(reduced).is_err() {
                 break;
             }
@@ -309,8 +307,7 @@ pub fn quantify_sample(idx: &MmapIndex, cfg: &QuantConfig) -> Result<QuantSummar
             },
         );
 
-        let mut wave_idx: usize = 0;
-        for wave_res in rx_wave {
+        for (wave_idx, wave_res) in rx_wave.into_iter().enumerate() {
             let wave = wave_res?;
             let pw_ref: Option<&[f64]> = locked_primer.as_deref();
             let wave_results: Vec<(QuantShard, Vec<String>)> = wave
@@ -326,7 +323,6 @@ pub fn quantify_sample(idx: &MmapIndex, cfg: &QuantConfig) -> Result<QuantSummar
                 reduced.0.collapse_wave0_hexamers(&w0_model.primer_weight);
                 locked_primer = Some(w0_model.primer_weight);
             }
-            wave_idx += 1;
             if tx_merge.send(reduced).is_err() {
                 break;
             }

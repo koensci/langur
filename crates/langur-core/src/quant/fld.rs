@@ -57,7 +57,7 @@ impl FragLenAccum {
 
             let kernel = [0.0545, 0.2442, 0.4026, 0.2442, 0.0545];
             let inv_n = 1.0 / (self.count as f64);
-            for d in 1..=FLD_MAX_LEN {
+            for (d, slot) in pmf.iter_mut().enumerate().skip(1) {
                 let mut acc = 0.0;
                 for (ki, &kw) in kernel.iter().enumerate() {
                     let pos = (d as isize) + (ki as isize) - 2;
@@ -65,7 +65,7 @@ impl FragLenAccum {
                         acc += (self.hist[pos as usize] as f64) * inv_n * kw;
                     }
                 }
-                pmf[d] = acc;
+                *slot = acc;
             }
             let sum_p: f64 = pmf.iter().sum();
             if sum_p > 0.0 {
@@ -85,10 +85,10 @@ impl FragLenAccum {
         let sd = fallback_sd.max(10.0);
         let inv_2var = 1.0 / (2.0 * sd * sd);
         let mut sum_p = 0.0;
-        for d in 1..=FLD_MAX_LEN {
+        for (d, slot) in pmf.iter_mut().enumerate().skip(1) {
             let diff = (d as f64) - mean;
             let p = (-diff * diff * inv_2var).exp();
-            pmf[d] = p;
+            *slot = p;
             sum_p += p;
         }
         if sum_p > 0.0 {

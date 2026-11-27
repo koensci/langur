@@ -135,9 +135,9 @@ pub fn solve_cc_vbem(
             continue;
         }
         for &tid in txs {
-            if !active_tx_map.contains_key(&tid) {
+            if let std::collections::hash_map::Entry::Vacant(e) = active_tx_map.entry(tid) {
                 let lid = active_txs.len();
-                active_tx_map.insert(tid, lid);
+                e.insert(lid);
                 active_txs.push(tid);
             }
         }
@@ -238,7 +238,7 @@ pub fn solve_cc_vbem(
     let mut total_iters = 0usize;
     for (tx_ids, counts, iters) in solved {
         total_iters += iters;
-        for (tid, c) in tx_ids.into_iter().zip(counts.into_iter()) {
+        for (tid, c) in tx_ids.into_iter().zip(counts) {
             tx_counts[tid as usize] = c;
         }
     }
@@ -417,6 +417,12 @@ fn max_rel_diff(a: &[f64], b: &[f64]) -> f64 {
     md
 }
 
+/// Stage 2 routed `(node_counts, edge_counts)` maps returned by [`route_multimappers_to_stage2`].
+pub type Stage2RoutedCounts = (
+    FxHashMap<(u32, u16), f64>,
+    FxHashMap<(u32, u16, u16), (f64, u32, u32)>,
+);
+
 /// Deterministic Stage 1 -> Stage 2 routing:
 /// Returns finalized per-gene `(node_counts, edge_counts)` maps containing BOTH uniquely-mapped
 /// counts (bias-adjusted if enabled) AND VBEM-resolved multi-mapper assignments!
@@ -426,10 +432,7 @@ pub fn route_multimappers_to_stage2(
     vbem: &VbemResult,
     bias_model: &BiasModel,
     bias_correct: bool,
-) -> (
-    FxHashMap<(u32, u16), f64>,
-    FxHashMap<(u32, u16, u16), (f64, u32, u32)>, // (adjusted_count, distinct_pos, max_stack)
-) {
+) -> Stage2RoutedCounts {
     // 1. Copy bias-adjusted unique node and edge counts
     let mut final_nodes: FxHashMap<(u32, u16), f64> =
         FxHashMap::with_capacity_and_hasher(counts.node_counts.len(), Default::default());
@@ -496,9 +499,7 @@ pub fn route_multimappers_to_stage2(
                 }
             } else {
                 let unif = 1.0 / (n_cands as f64);
-                for w in &mut cand_weights {
-                    *w = unif;
-                }
+                cand_weights.fill(unif);
             }
         } else {
             for w in &mut cand_weights {

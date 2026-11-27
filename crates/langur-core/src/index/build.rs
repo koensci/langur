@@ -92,7 +92,7 @@ impl Default for IndexBuildConfig {
 
 impl IndexBuildConfig {
     pub fn validate(&self) -> Result<()> {
-        if self.minimizer_k < 3 || self.minimizer_k > 31 || self.minimizer_k % 2 == 0 {
+        if self.minimizer_k < 3 || self.minimizer_k > 31 || self.minimizer_k.is_multiple_of(2) {
             return Err(LangurError::InvalidParam(format!(
                 "minimizer_k must be an odd integer in 3..=31 (got {})",
                 self.minimizer_k

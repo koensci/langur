@@ -198,9 +198,9 @@ pub fn align_paired_reads(
         };
 
         let pair_score = mate_5p.score + mate_3p.score;
-        if pair_score > best_pair_score {
-            best_c1_hits = c1.hit_count;
-        } else if pair_score == best_pair_score && c1.hit_count > best_c1_hits {
+        if pair_score > best_pair_score
+            || (pair_score == best_pair_score && c1.hit_count > best_c1_hits)
+        {
             best_c1_hits = c1.hit_count;
         }
         let pa = PairedAlignment {
@@ -486,8 +486,8 @@ pub fn compute_pair_fragment_length(
             }
         }
     }
-    if cnt > 0 {
-        return Some(((sum / cnt) as u32, compat_txs));
+    if let Some(avg) = sum.checked_div(cnt) {
+        return Some((avg as u32, compat_txs));
     }
 
     let nodes = idx.gene_nodes(gene_id);
