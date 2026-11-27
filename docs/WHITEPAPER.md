@@ -351,7 +351,7 @@ All $\binom{6}{3}/2 = 10$ unique 3v3 partitions of the 6 same-sex, same-center d
 | Original `Whippet.jl` v1.6.2 (`P ≥ 0.95 & \|ΔΨ\| ≥ 0.1`) | All (`136,507`) | 0.88% *(call rate)* | — | **1,202.9 / 1,099.5** | `851–1,996` (`63.4` Spliced) |
 
 #### C. Multivariable Batch Confounding (`~ center + sex`, 14 Imbalanced CEU Donors)
-| Model | Spliced Median $\hat{\phi}$ | Pure Center Artifacts ($n = 87$) `med \|ΔΨ\|` / `FDR ≤ 0.05` Leaks | `chrX`/`chrY` Hits @ $p \le 0.01$ *(All / Spliced)* | `chrX`/`chrY` Enrichment vs. Autosomes *(All / Spliced)* | Total Calls (`FDR ≤ 0.05` or `Prob ≥ 0.95`) |
+| Model | Spliced Median $\hat{\phi}$ | Pure Center Artifacts ($n = 87$) `med \|ΔΨ\|` / `FDR ≤ 0.05` Leaks | `chrX`/`chrY` Hits @ $p \le 0.01$ *(or `Prob ≥ 0.95`)* *(All / Spliced)* | `chrX`/`chrY` Enrichment vs. Autosomes *(All / Spliced)* | Total Calls (`FDR ≤ 0.05` or `Prob ≥ 0.95`) |
 |---|---:|---:|---:|---:|---:|
 | **Langur unadjusted (`M vs F`)** | `0.0383` | `0.080` / `0` | `11` / `4` | `1.11×` / `1.21×` | `0` (`0` Spliced) |
 | **Langur adjusted (`~ center + sex`)** | **`0.0323`** *(-15.7%)* | **`0.052`** *(-35%)* / **`0`** | **`22` / `8`** *(2×)* | **`1.44×` / `1.67×`** | `13` (`0` Spliced)³ |
