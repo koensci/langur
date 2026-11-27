@@ -114,22 +114,23 @@ langur -t 16 delta \
 | **`delta` GLM** (223k events, `-r 5 -s 2`) | **2.50 s** · **191 MB** | 27.38 s · 1.87 GB | 85.51 s *(`--legacy`)* · 609 MB | **34.2× vs. legacy · 11.0× & 9.8× RAM vs. W2** |
 | **Differential Splicing** (`TPR / FDR @0.05` · AUPRC) | **0.336 / 5.4%** *(0.338 / 2.0% spliced)* · **0.565** | 0.306 / 5.3% *(0.309 / 1.3% spliced)* · 0.551 | 0.744 / 81.5% · 0.352 | **15× lower FDR vs. legacy · 10.6× lower FDR vs. `rMATS`** |
 
-### Real Human RNA-seq vs. PacBio HiFi Ground Truth (LRGASP WTC11, GRCh38, 5-Way)
+### Real Human RNA-seq vs. PacBio HiFi Ground Truth (LRGASP WTC11, GRCh38, 6-Way)
 
 Real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78M` pairs = `91.57M` reads, `--biascorrect`, 16T) on full GENCODE v38 basic (`60,649` genes, `111,832` transcripts) vs. pooled 3-replicate matched PacBio HiFi Iso-Seq (ENCODE `ENCSR507JOF`; `LR ≥ 20`, `SR ≥ 10`; PSI accuracy reported as `r / ρ / MAE`):
 
-| Metric (GRCh38 / WTC11) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(16T)* | `Whippet.jl` v1.6.2 *(1T)* | `Salmon 2.12.0` + `SUPPA2 2.4` *(16T)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(16T)* |
-|---|---:|---:|---:|---:|---:|
-| **Index / Setup** *(uncompressed FASTA)* | **14.8 s** · **5.19 GB** · **1.06 GB** | 28.6 s · 5.33 GB · 691 MB | 753.8 s · 9.87 GB · 634 MB | 110.8 s · 17.93 GB · **8.51 GB** | 683.1 s · 35.09 GB · **29.5 GB** |
-| **End-to-End** *(91.6M reads)* | **72.7 s** (`1.26M/s`) · **1.35 GB** · **0 GB BAM** | 82.3 s · 9.10 GB · 0 GB | 1,467.4 s · 7.00 GB · 0 GB | 190.5 s · **12.24 GB** · 0 GB | 526.1 s · **31.64 GB** · **5.1 GB BAM** |
-| **Mapped Pairs** *(of 45.78M)* | **30.00M (65.5%)** | 24.70M (53.9%) | 24.70M (53.9%) | **30.44M (66.5%)** | 30.55M (66.7%) unique + 1.87M multi |
-| **3-Way CSG Polymorphic** (`n = 13,359`, 6 motifs) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | — | *(no `AF`/`AL`/`TS`/`TE` or TPMs)* |
-| **5-Way Shared Polymorphic** (`n = 4,693`) | **0.9507 / 0.9350 / 0.0688** | 0.9456 / 0.9291 / 0.0728 | 0.9105 / 0.8974 / 0.1012 | 0.6832 / 0.6688 / 0.1747 | 0.9099 / 0.8822 / 0.0896 *(`JC`)* |
-| **5-Way Binary (`K0/K1`, `n = 2,008`)** | **0.9467 / 0.9292 / 0.0740** | 0.9424 / 0.9245 / 0.0778 | 0.9126 / 0.8994 / 0.1032 | 0.7272 / 0.7166 / 0.1599 | 0.9414 / 0.9188 / 0.0767 *(`JC`)* |
-| **5-Way Complex (`K_n ≥ 2`, `n = 2,685`)** | **0.9551 / 0.9413 / 0.0648** | 0.9493 / 0.9340 / 0.0692 | 0.9090 / 0.8959 / 0.0996 | 0.6510 / 0.6327 / 0.1859 | 0.8863 / 0.8533 / 0.0993 *(`JC`)* |
-| **Gene / Isoform MedARD vs. `Salmon 2`** (`TPM ≥ 1`) | **0.0410 / 0.0678** *(3.2× / 2.1× closer)* | 0.1305 / 0.1399 | 0.1402 / 0.1557 | *(reference)* | *(no TPM output)* |
+| Metric (GRCh38 / WTC11) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(16T)* | `Whippet.jl` v1.6.2 *(1T)* | `Salmon 2.12.0` + `SUPPA2 2.4` *(16T)* | `STAR 2.7.11b` + `MAJIQ v3.0.25` *(16T)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(16T)* |
+|---|---:|---:|---:|---:|---:|---:|
+| **Index / Setup** *(uncompressed FASTA)* | **14.8 s** · **5.19 GB** · **1.06 GB** | 28.6 s · 5.33 GB · 691 MB | 753.8 s · 9.87 GB · 634 MB | 110.8 s · 17.93 GB · **8.51 GB** | 700.7 s · **35.09 GB** · **29.5 GB** | 683.1 s · 35.09 GB · **29.5 GB** |
+| **End-to-End** *(91.6M reads)* | **72.7 s** (`1.26M/s`) · **1.35 GB** · **0 GB BAM** | 82.3 s · 9.10 GB · 0 GB | 1,467.4 s · 7.00 GB · 0 GB | 190.5 s · **12.24 GB** · 0 GB | 370.9 s¹ · **31.64 GB** · **5.1 GB BAM** | 526.1 s · **31.64 GB** · **5.1 GB BAM** |
+| **Mapped Pairs** *(of 45.78M)* | **30.00M (65.5%)** | 24.70M (53.9%) | 24.70M (53.9%) | **30.44M (66.5%)** | 30.55M (66.7%) unique + 1.87M multi | 30.55M (66.7%) unique + 1.87M multi |
+| **3-Way CSG Polymorphic** (`n = 13,359`, 6 motifs) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | — | *(LSV junctions + IR; no TPMs)* | *(no `AF`/`AL`/`TS`/`TE` or TPMs)* |
+| **6-Way Shared Polymorphic** (`n = 3,672`) | **0.9568 / 0.9402 / 0.0653** | 0.9518 / 0.9350 / 0.0697 | 0.9188 / 0.9052 / 0.0966 | 0.6980 / 0.6802 / 0.1694 | 0.8924 / 0.8755 / 0.0948 | 0.9186 / 0.8876 / 0.0854 *(`JC`)* |
+| **6-Way Binary (`K0/K1`, `n = 1,635`)** | **0.9540 / 0.9365 / 0.0693** | 0.9492 / 0.9330 / 0.0734 | 0.9198 / 0.9064 / 0.0976 | 0.7403 / 0.7297 / 0.1560 | 0.9431 / 0.9259 / 0.0718 | 0.9499 / 0.9266 / 0.0719 *(`JC`)* |
+| **6-Way Complex (`K_n ≥ 2`, `n = 2,037`)** | **0.9604 / 0.9445 / 0.0621** | 0.9551 / 0.9376 / 0.0668 | 0.9181 / 0.9039 / 0.0958 | 0.6643 / 0.6390 / 0.1802 | 0.8569 / 0.8379 / 0.1133 | 0.8940 / 0.8549 / 0.0963 *(`JC`)* |
+| **MAJIQ v3 Native SJ LSVs** (`n = 12,899` conns)² | **0.9602 / 0.9445 / 0.0645** *(`.jnc`)* | 0.9458 / 0.9289 / 0.0747 *(`.jnc`)* | — | — | **0.9603 / 0.9455 / 0.0632** | — |
+| **Gene / Isoform MedARD vs. `Salmon 2`** (`TPM ≥ 1`) | **0.0410 / 0.0678** *(3.2× / 2.1× closer)* | 0.1305 / 0.1399 | 0.1402 / 0.1557 | *(reference)* | *(no TPM output)* | *(no TPM output)* |
 
-*Memory figures report macOS `/usr/bin/time -l` peak memory footprint. Even under `SUPPA2`'s own exact-event PacBio truth on binary `K0/K1` events (`n = 2,339`), Langur scores `0.9403 / 0.9232 / 0.0734` vs. `Salmon 2.12.0 + SUPPA2 2.4` `0.7393 / 0.7299 / 0.1563` (-53% MAE).*
+*Memory figures report macOS `/usr/bin/time -l` peak memory footprint. ¹ `STAR + MAJIQ v3.0.25`: `357.0 s` STAR + `13.9 s` MAJIQ v3 (`sj 8.88 s · build 1.39 s · psi-coverage 1.66 s · quantify 1.94 s`, `653 MB` peak, plus `~10 s` `.bai`). ² Evaluated directly on MAJIQ v3's own `6,194` polymorphic annotated splice-junction LSVs (`12,899` connections, incl. `4,343` complex `K ≥ 3`: Langur `.jnc.gz` `0.9525 / 0.0661` vs. `STAR + MAJIQ v3` `0.9538 / 0.0651`). Even under `SUPPA2`'s own binary PacBio truth (`n = 2,339`), Langur scores `0.9403 / 0.0734` vs. `Salmon 2 + SUPPA2` `0.7393 / 0.1563` (-53% MAE).*
 
 ### Real Human Cohort Null Calibration & Batch Adjustment (Geuvadis `ERP001942`, GRCh38)
 
