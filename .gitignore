@@ -1,0 +1,13 @@
+/target
+/bench_emtab3766/
+**/*.lidx
+**/*.w3idx
+**/*.fq.gz
+**/*.fastq.gz
+**/*.tsv.gz
+**/*.psi.gz
+**/*.tpm.gz
+**/*.jnc.gz
+**/*.map.gz
+**/*.diff.gz
+.DS_Store

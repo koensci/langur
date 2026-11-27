@@ -1,0 +1,38 @@
+[package]
+name = "langur-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core splice-graph, zero-copy mmap index, quantification, and differential splicing engine for Langur"
+
+[dependencies]
+bytemuck.workspace = true
+crc32fast.workspace = true
+flate2.workspace = true
+memmap2.workspace = true
+needletail.workspace = true
+noodles.workspace = true
+rayon.workspace = true
+rustc-hash.workspace = true
+smallvec.workspace = true
+statrs.workspace = true
+thiserror.workspace = true
+
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+block-aligner = { workspace = true, features = ["simd_neon"] }
+
+[target.'cfg(all(target_arch = "x86_64", target_feature = "avx2"))'.dependencies]
+block-aligner = { workspace = true, features = ["simd_avx2"] }
+
+[target.'cfg(all(target_arch = "x86_64", not(target_feature = "avx2")))'.dependencies]
+block-aligner = { workspace = true, features = ["simd_sse2"] }
+
+[dev-dependencies]
+criterion.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+
+[[bench]]
+name = "index_bench"
+harness = false

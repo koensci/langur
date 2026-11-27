@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/langur-core",
+    "crates/langur-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/koensci/langur"
+
+[workspace.dependencies]
+block-aligner = "0.5"
+bytemuck = { version = "1.21", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
+crc32fast = "1.4"
+flate2 = { version = "1.0", default-features = false, features = ["zlib-ng"] }
+memmap2 = "0.9"
+needletail = "0.6"
+noodles = { version = "0.94", features = ["bam", "core", "csi", "sam"] }
+rayon = "1.10"
+rustc-hash = "2.1"
+smallvec = "1.13"
+statrs = "0.18"
+thiserror = "2.0"
+
+# Dev / benchmark dependencies
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.6"
+tempfile = "3.14"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+opt-level = 3
