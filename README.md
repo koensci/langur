@@ -100,19 +100,20 @@ langur -t 16 delta \
 
 ## Benchmark Highlights
 
-### Simulated Human Cohort (`E-MTAB-3766`, GRCh37.71, 480M Reads)
+### Simulated Human Cohort (`E-MTAB-3766`, GRCh37.71, 480M Reads, 6-Way)
 
-3 vs. 3 paired-end 101 bp replicates (`20,410` protein-coding genes, `145,342` transcripts, `1,000` truly DS genes; 16T, `--biascorrect`, Apple Silicon arm64):
+3 vs. 3 paired-end 101 bp replicates (`20,410` protein-coding genes, `145,342` transcripts, `1,000` truly DS genes; fresh 2026 Apple Silicon `arm64`, 16T, `--biascorrect`, `/usr/bin/time -l` peak footprint):
 
-| Stage | **Langur** *(Rust, 16T)* | [`Whippet2-turbo`](https://github.com/koensci/Whippet2.jl) *(Julia 1.9, 16T)* | `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
-|---|---:|---:|---:|---|
-| **Index Build** *(uncompressed FASTA)* | **14.6 s** · 4.36 GB *(incl. 1.10 Gb decoys)* | 23.0 s · 4.21 GB | 287.1 s · 8.10 GB | **19.7× vs. W1 · 1.58× vs. W2** |
-| **Index Load** | **0.03 ms** (`mmap`) | 6.20 s | 7.33 s | **>200,000× faster** |
-| **Sample 1 `quant`** (80M reads) | **40.5 s** (`1.98M/s`) · **1.40 GB** | 81.1 s (`987k/s`) · 9.62 GB | 1,608.4 s (`49.7k/s`) · 7.19 GB | **39.7× vs. W1 · 2.00× vs. W2 · 6.9× less RAM** |
-| **6-Sample `--batch`** (480M reads) | **248.9 s** (`1.93M/s`) · **1.42 GB** | 433.8 s (`1.11M/s`) · 9.83 GB | *9,650.6 s* *(6× extrap.)* · 7.19 GB | **38.8× vs. W1 · 1.74× vs. W2 · 6.9× less RAM** |
-| **Gene / Isoform MedARD** *(Median ARD vs. RSEM)* | **0.0137 / 0.0402** | 0.0443 / 0.0687 | 0.0753 / 0.1145 | **5.5× / 2.85× lower error vs. W1** |
-| **`delta` GLM** (223k events, `-r 5 -s 2`) | **2.50 s** · **191 MB** | 27.38 s · 1.87 GB | 85.51 s *(`--legacy`)* · 609 MB | **34.2× vs. legacy · 11.0× & 9.8× RAM vs. W2** |
-| **Differential Splicing** (`TPR / FDR @0.05` · AUPRC) | **0.336 / 5.4%** *(0.338 / 2.0% spliced)* · **0.565** | 0.306 / 5.3% *(0.309 / 1.3% spliced)* · 0.551 | 0.744 / 81.5% · 0.352 | **15× lower FDR vs. legacy · 10.6× lower FDR vs. `rMATS`** |
+| Metric (`E-MTAB-3766`, 480M reads) | **Langur** *(Rust, 16T)* | [`Whippet2-turbo`](https://github.com/koensci/Whippet2.jl) *(16T)* | `Whippet.jl` v1.6.2 *(1T)* | `Salmon 2.12.0` + `SUPPA2 2.4` *(16T)* | `STAR 2.7.11b` + `MAJIQ v3.0.25` *(16T)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(16T)* |
+|---|---:|---:|---:|---:|---:|---:|
+| **Index / Setup** *(time · RAM · disk)* | **14.6 s** · 4.36 GB · **820 MB** | 23.0 s · 4.21 GB · 529 MB | 287.1 s · 8.10 GB · 473 MB | 125.0 s · 17.49 GB · **7.7 GB** | 673.0 s · **34.84 GB** · **27 GB** | 667.3 s · **34.84 GB** · **27 GB** |
+| **6-Sample Quant / Align** *(time · RAM)* | **248.9 s** (`4m 09s`) · **1.42 GB** | 433.8 s (`7m 14s`) · 9.83 GB | *9,651 s* *(6× extrap.)* · 7.19 GB | 328.4 s (`5m 28s`) · 12.06 GB | 1,268.6 s (`21m 09s`) · **31.04 GB** | 1,268.6 s (`21m 09s`) · **31.04 GB** |
+| **DS Testing** *(time · RAM)* | **2.50 s** · **191 MB** | 27.38 s · 1.87 GB | 85.51 s *(`--legacy`)* · 609 MB | 205.1 s *(6-motif)* · 521 MB | 70.9 s *(`deltapsi`)* / 73.0 s *(`het.`)* · 979 MB | 217.7 s · 1.30 GB |
+| **End-to-End Total** *(time · BAM disk)* | **266.0 s** (`4m 26s`) · **0 GB** | 484.2 s (`8m 04s`) · 0 GB | *10,023 s* (`2h 47m`) · 0 GB | 658.5 s (`10m 59s`) · 0 GB | 2,012.5 s (`33m 33s`) · **38 GB BAM** | 2,153.6 s (`35m 54s`) · **38 GB BAM** |
+| **Gene / Isoform MedARD** *(vs. RSEM)* | **0.0137 / 0.0402** | 0.0443 / 0.0687 | 0.0753 / 0.1145 | *(reference-class TPMs)* | *(no TPM output)* | *(no TPM output)* |
+| **DS Accuracy** (`TPR / FDR @0.05` · AUPRC) | **0.338 / 2.0%** *(Spl.)* · **0.567**<br>0.336 / 5.4% *(All)* · 0.565 | 0.309 / 1.3% *(Spl.)* · 0.549<br>0.306 / 5.3% *(All)* · 0.551 | 0.744 / **81.5%** · 0.352<br>*(0.638 / 66.9% @ \|ΔΨ\|≥0.1)* | 0.135 / 1.5% *(BH)* · 0.347¹<br>0.411 / **28.5%** *(-gc p)* · 0.491 | **0.408 / 2.9%** *(`dPsi≥0.20`)* · **0.667**²<br>0.502 / 8.9% *(`≥0.05`)* · 0.669 | 0.465 / **72.0%** *(`JC`)* · 0.412<br>0.480 / **73.6%** *(`JCEC`)* · 0.398 |
+
+*¹ `SUPPA2 -m empirical -gc` produces quantized empirical $p$-values (`min_pos_p = 5.0e-4`), so genome-wide Simes+BH collapses TPR to `0.135`; even on SUPPA2's native unadjusted `-gc` `min(p) ≤ 0.05`, Langur achieves higher AUPRC (`0.567` vs. `0.491`), 14× tighter FDR (`2.0%` vs. `28.5%`), 2.5× faster end-to-end runtime, 8.5× lower quant RAM, and a 9.4× smaller index. ² `MAJIQ v3 deltapsi` pools replicates (ideal for homogeneous 3v3 simulations) at 7.6× slower runtime, 21.9× more RAM, and 65 GB STAR index+BAMs; `MAJIQ v3 heterogen` (required for heterogeneous human cohorts) yields `TPR@0.05 = 0.034` (`0.0%` FDR, `0.509` AUPRC) at `n = 3 vs 3`. Across the `1,000` truly DS genes (`58.7%` small shifts `< 0.333`), Langur recovers **81.1% / 78.4%** (`All / Spliced`) of large switches (`[0.667, 1.000]`, vs. `MAJIQ` `83.8%`).*
 
 ### Real Human RNA-seq vs. PacBio HiFi Ground Truth (LRGASP WTC11, GRCh38, 6-Way)
 
