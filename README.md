@@ -151,18 +151,18 @@ Benchmarked on the 480M-read human paired-end dataset (`E-MTAB-3766`, Soneson et
 
 ### Real Human RNA-seq vs. PacBio HiFi Ground Truth (LRGASP WTC11, GRCh38)
 
-Benchmarked on real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78M` pairs = `91.57M` reads, `--biascorrect`, 16T) against full GENCODE v38 basic (`60,649` genes, `111,832` transcripts, GRCh38) with orthogonal long-read ground-truth PSI computed from pooled 3-replicate matched PacBio HiFi Iso-Seq alignments (ENCODE `ENCSR507JOF`; `LR ≥ 20`, `SR ≥ 10` across all 3 tools):
+Benchmarked on real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78M` pairs = `91.57M` reads, `--biascorrect`, 16T) against full GENCODE v38 basic (`60,649` genes, `111,832` transcripts, GRCh38) alongside genome-aligned **`STAR 2.7.11b` + `rMATS-turbo v4.3.0`** (16T), with orthogonal long-read ground-truth PSI from pooled 3-replicate matched PacBio HiFi Iso-Seq alignments (ENCODE `ENCSR507JOF`; `LR ≥ 20`, `SR ≥ 10`):
 
-| Metric (GRCh38 / WTC11) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(Julia 1.9, 16T)* | Original `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
-|---|---:|---:|---:|---|
-| **GRCh38 Index Build** *(60,649 genes, uncompressed FASTA)* | **14.8 s** · **5.19 GB** *(incl. 1.31 Gb decoys)* | 28.6 s · 5.33 GB *(no decoys)* | 753.8 s *(12m 34s)* · 9.87 GB | **50.9× vs. W1 · 1.93× vs. W2** |
-| **GRCh38 Index Load** | **0.11 ms** (`mmap`) | 1.83 s | 1.71 s | **>15,000× faster** |
-| **WTC11 Rep 1 `quant`** (91.6M reads) | **72.7 s** (`1.26M reads/s`) · **1.35 GB** | 82.3 s (`1.11M/s`) · 9.10 GB | 1,467.4 s (`62.4k/s`) · 7.00 GB | **20.2× vs. W1 · 1.13× vs. W2**; **6.75× less RAM** |
-| **Mapped Pairs** (of 45.78M) | **30.00M (65.5%)** *(382k decoy-filtered)* | 24.70M (53.9%) | 24.70M (53.9%) | **+5.30M more mapped pairs** (`+11.6 pp`) |
-| **PacBio HiFi Polymorphic PSI** (`n = 13,359`, `r / ρ / MAE`) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | **27/27 clean sweep** across all 6 motifs + `K0/K1` & `K_n ≥ 2` |
-| **Complex Events (`K_n ≥ 2`)** (`n = 7,294`, `r / ρ / MAE`) | **0.9352 / 0.8995 / 0.0746** | 0.9333 / 0.8974 / 0.0780 | 0.9018 / 0.8662 / 0.1017 | **+0.0334 $r$ & -27% MAE vs. W1** |
+| Metric (GRCh38 / WTC11) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(Julia 1.9, 16T)* | Original `Whippet.jl` v1.6.2 *(1T)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(16T)* | Langur Advantage |
+|---|---:|---:|---:|---:|---|
+| **GRCh38 Index Build** *(60,649 genes, uncompressed FASTA)* | **14.8 s** · **5.19 GB** · **1.06 GB** *(incl. 1.31 Gb decoys)* | 28.6 s · 5.33 GB · 691 MB *(no decoys)* | 753.8 s · 9.87 GB · 634 MB | 683.1 s *(11m 23s)* · 35.09 GB · **28 GiB** | **50.9× vs. W1 · 46.2× vs. STAR · 6.8× less RAM & 27× smaller index** |
+| **WTC11 Rep 1 End-to-End** *(91.6M reads)* | **72.7 s** (`1.26M reads/s`) · **1.35 GB** · **0 GB BAM** | 82.3 s (`1.11M/s`) · 9.10 GB · 0 GB | 1,467.4 s (`62.4k/s`) · 7.00 GB · 0 GB | 526.1 s *(`357.0 s` STAR + `169.1 s` rMATS)* · **31.64 GB** · **4.8 GiB BAM** | **7.24× faster & 23.5× less RAM vs. STAR+rMATS**; **zero BAMs** |
+| **Mapped Pairs** *(of 45.78M)* | **30.00M (65.5%)** *(382k decoy-filtered)* | 24.70M (53.9%) | 24.70M (53.9%) | 30.55M (66.7%) unique + 1.87M multi *(genome-wide)* | **+5.30M pairs vs. W2/W1**; matches STAR unique exon capture |
+| **PacBio Polymorphic PSI (3-way CSG, `n = 13,359`)** | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | *(binary `SE/A3SS/A5SS/RI` only; no `AF`/`AL`/`TS`/`TE`/TPMs)* | **27/27 clean sweep** across all 6 motifs + `K0/K1` & `K_n ≥ 2` |
+| **4-Way Shared Binary (`K0/K1`, `n = 3,106`)** | **0.9441 / 0.8774 / 0.0709** | 0.9417 / 0.8753 / 0.0732 | 0.9209 / 0.8594 / 0.0925 | 0.9440 / 0.8721 / 0.0715 *(`JC`)* | **Parity with STAR+rMATS** at 7.2× speed & 23.5× less RAM |
+| **4-Way Shared Complex (`K_n ≥ 2`, `n = 4,709`)** | **0.9436 / 0.8996 / 0.0672** | 0.9413 / 0.8976 / 0.0698 | 0.9095 / 0.8645 / 0.0925 | 0.8774 / 0.8009 / 0.0989 *(`JC`)* | **+0.066 $r$ & -32% MAE** on full-length complex exon inclusion |
 
-*`Whippet2-turbo` index builds reflect commit `94a491f`; `E-MTAB-3766` `quant` timing/memory reflects commit `400f0f3` and TPM/stratified GLM reflects commit `c725028` (identical quantification accuracy). All memory figures report macOS `/usr/bin/time -l` peak memory footprint. See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full stratified tables, ablations, and mathematical specifications.*
+*`Whippet2-turbo` index builds reflect commit `94a491f`; `E-MTAB-3766` `quant` timing/memory reflects commit `400f0f3` and TPM/stratified GLM reflects commit `c725028` (identical quantification accuracy). All memory figures report macOS `/usr/bin/time -l` peak memory footprint. See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full stratified tables (including exact rMATS-junction sensitivity checks), ablations, and mathematical specifications.*
 
 ---
 
