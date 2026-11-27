@@ -19,15 +19,6 @@ smallvec.workspace = true
 statrs.workspace = true
 thiserror.workspace = true
 
-[target.'cfg(target_arch = "aarch64")'.dependencies]
-block-aligner = { workspace = true, features = ["simd_neon"] }
-
-[target.'cfg(all(target_arch = "x86_64", target_feature = "avx2"))'.dependencies]
-block-aligner = { workspace = true, features = ["simd_avx2"] }
-
-[target.'cfg(all(target_arch = "x86_64", not(target_feature = "avx2")))'.dependencies]
-block-aligner = { workspace = true, features = ["simd_sse2"] }
-
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true

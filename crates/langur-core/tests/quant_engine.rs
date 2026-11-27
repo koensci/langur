@@ -1,7 +1,7 @@
 //! Phase 2 comprehensive test suite for `langur quant`:
 //! - Paired-end FR (`--stranded`), RF (`--stranded-reverse` / TruSeq dUTP), and Unstranded protocols
 //! - Decoy vs. intronless processed pseudogene scoring parity (strict `best_decoy > best_csg`)
-//! - 1-SNP-tolerant novel splice jumps & SIMD `block-aligner` gapped indel extension
+//! - 1-SNP-tolerant novel splice jumps & banded Gotoh gapped indel extension
 //! - Connected-component Transcript VBEM + SQUAREM (parent gene absorbs ambiguous reads from silent pseudogene)
 //! - MAJIQ-style PCR-stack soft-capping (novel/RI only, never annotated constitutive)
 //! - End-to-end 2-pass GC bias feedback, 15-column `.psi.gz` (`Inf_Var`), `.jnc.gz` (`Distinct_Pos`/`Max_Stack`),
@@ -225,7 +225,7 @@ chr1\tT\texon\t361\t420\t.\t+\t.\tgene_id \"G_PARENT\"; transcript_id \"TP\";
 }
 
 #[test]
-fn test_snp_tolerant_novel_splice_jump_and_simd_gapped_indel() {
+fn test_snp_tolerant_novel_splice_jump_and_banded_gapped_indel() {
     // 3 exons: E1 (101..180), E2 (301..380), E3 (501..580).
     // Only isoform E1-E2-E3 is annotated -> E1-E3 skipping is a NOVEL combinatorial junction!
     let mut chr = pseudo_dna(505, 1000);
@@ -272,7 +272,7 @@ chr1\tT\texon\t501\t580\t.\t+\t.\tgene_id \"G_SKIP\"; transcript_id \"T_FULL\";
         other => panic!("SNP-containing novel junction read failed to align: {other:?}"),
     }
 
-    // 2. Exonic read with a 2-bp insertion inside E1 -> triggers SIMD `block-aligner` gapped extension!
+    // 2. Exonic read with a 2-bp insertion inside E1 -> triggers banded Gotoh gapped extension!
     let mut indel_read = Vec::new();
     indel_read.extend_from_slice(&chr[100..140]);
     indel_read.extend_from_slice(b"GT"); // 2 bp insertion
@@ -285,12 +285,12 @@ chr1\tT\texon\t501\t580\t.\t+\t.\tgene_id \"G_SKIP\"; transcript_id \"T_FULL\";
             // way above ungapped truncation score (40 * 2 = 80)!
             assert!(
                 alns[0].score > 130,
-                "expected SIMD gapped score > 130, got {}",
+                "expected banded Gotoh gapped score > 130, got {}",
                 alns[0].score
             );
             assert!(alns[0].segs[0].indels >= 2);
         }
-        other => panic!("indel read failed to align via SIMD block-aligner: {other:?}"),
+        other => panic!("indel read failed to align via banded Gotoh aligner: {other:?}"),
     }
 }
 

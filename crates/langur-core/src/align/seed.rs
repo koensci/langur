@@ -93,11 +93,38 @@ pub fn collect_seeds(
         return;
     }
 
+    // Two-tier repetitive minimizer screening:
+    // On 60k-gene human annotations (GENCODE v38), poly-A/Alu/LINE 17-mers hit up to 256 CSG
+    // genes per minimizer (~19% of minimizers on real RNA-seq). Look up all ~11 minimizers once
+    // into a stack SmallVec; if >= 2 low/moderate-copy minimizers (<= 64 CSG postings) exist,
+    // skip > 64-copy repetitive postings (eliminating ~95% of Alu/poly-A posting bloat while
+    // preserving full fallback sensitivity for genuine high-copy paralog families).
+    const LOW_OCC_CSG_CUTOFF: usize = 64;
+    let mut lookups: SmallVec<[(Minimizer, MinimizerLookup<'_>); 24]> = SmallVec::new();
+    let mut n_low_occ_csg = 0usize;
     for i in 0..scratch.mins.len() {
         let m = scratch.mins[i];
         let Some(lookup) = idx.lookup_minimizer(m.hash) else {
             continue;
         };
+        match lookup {
+            MinimizerLookup::Inline(_) => {
+                n_low_occ_csg += 1;
+            }
+            MinimizerLookup::Postings { csg, decoys, .. } => {
+                if !decoys.is_empty() {
+                    scratch.has_any_decoy_posting = true;
+                }
+                if !csg.is_empty() && csg.len() <= LOW_OCC_CSG_CUTOFF {
+                    n_low_occ_csg += 1;
+                }
+            }
+        }
+        lookups.push((m, lookup));
+    }
+    let skip_high_occ = n_low_occ_csg >= 2;
+
+    for (m, lookup) in lookups {
         match lookup {
             MinimizerLookup::Inline(hit) => {
                 record_csg_hit(
@@ -111,7 +138,10 @@ pub fn collect_seeds(
                     &mut scratch.gene_candidates,
                 );
             }
-            MinimizerLookup::Postings { csg, decoys, .. } => {
+            MinimizerLookup::Postings { csg, .. } => {
+                if skip_high_occ && csg.len() > LOW_OCC_CSG_CUTOFF {
+                    continue;
+                }
                 for &hit in csg {
                     record_csg_hit(
                         hit,
@@ -123,9 +153,6 @@ pub fn collect_seeds(
                         &mut scratch.gene_map,
                         &mut scratch.gene_candidates,
                     );
-                }
-                if !decoys.is_empty() {
-                    scratch.has_any_decoy_posting = true;
                 }
             }
         }

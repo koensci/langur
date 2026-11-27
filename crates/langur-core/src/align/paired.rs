@@ -86,6 +86,7 @@ pub fn align_paired_reads(
 
     let r1_len = scratch.fwd_norm.len();
     let r2_len = scratch.r2_fwd_norm.len();
+    let max_r2 = (r2_len as i32) * cfg.match_score;
     let max_possible_pair = ((r1_len + r2_len) as i32) * cfg.match_score;
     let min_r1 = min_valid_score(r1_len, cfg);
     let min_r2 = min_valid_score(r2_len, cfg);
@@ -125,6 +126,25 @@ pub fn align_paired_reads(
             idx2
         };
         let c2 = &scratch.seed_r2.gene_candidates[i2];
+        // If we already have a near-exact pair (<= 2 mismatches across 200 bp) supported by >= 5 R1
+        // minimizers, skip trailing noise candidates where BOTH mates have only 1 minimizer hit.
+        if best_pair_score >= max_possible_pair - 12
+            && best_c1_hits >= 5
+            && c1.hit_count <= 1
+            && c2.hit_count <= 1
+        {
+            continue;
+        }
+
+        // Exact mathematical guard: once `best_pair_score` is high enough that even a single
+        // 1-bp gap (`gap_open = -6`) cannot reach `best_pair_score - pair_tol`, gapped DP on
+        // trailing candidates is mathematically guaranteed not to survive retention!
+        let mut cand_cfg = cfg.clone();
+        if best_pair_score != i32::MIN
+            && max_possible_pair + cfg.gap_open < best_pair_score - pair_tol
+        {
+            cand_cfg.enable_gapped = false;
+        }
 
         let q1: &[u8] = if c1.read_is_sense {
             &scratch.fwd_norm
@@ -136,10 +156,15 @@ pub fn align_paired_reads(
             }
             &scratch.rc_norm
         };
-        let Some(aln1) = extend_gene_candidate(idx, c1, q1, r1_has_n, cfg, &mut scratch.work) else {
+        let Some(aln1) = extend_gene_candidate(idx, c1, q1, r1_has_n, &cand_cfg, &mut scratch.work) else {
             continue;
         };
         if aln1.score < min_r1 {
+            continue;
+        }
+        // Exact mathematical upper-bound pruning: if even a perfect R2 alignment cannot reach
+        // `best_pair_score - pair_tol`, skip extending R2 completely (zero output change).
+        if best_pair_score != i32::MIN && aln1.score + max_r2 < best_pair_score - pair_tol {
             continue;
         }
 
@@ -153,7 +178,7 @@ pub fn align_paired_reads(
             }
             &scratch.r2_rc_norm
         };
-        let Some(aln2) = extend_gene_candidate(idx, c2, q2, r2_has_n, cfg, &mut scratch.work) else {
+        let Some(aln2) = extend_gene_candidate(idx, c2, q2, r2_has_n, &cand_cfg, &mut scratch.work) else {
             continue;
         };
         if aln2.score < min_r2 {
@@ -257,8 +282,33 @@ pub fn align_paired_reads(
                             }
                             &scratch.r2_rc_norm
                         };
-                        let sc1 = score_single_decoy(idx, *d1, q1, cfg, &mut scratch.work);
-                        let sc2 = score_single_decoy(idx, *d2, q2, cfg, &mut scratch.work);
+                        // Exact mathematical guard: a decoy alignment containing any gap has score
+                        // <= max_possible_pair + gap_open; if that cannot strictly exceed best_pair_score,
+                        // gapped DP on decoys is mathematically superfluous (zero output change).
+                        let decoy_gapped = max_possible_pair + cfg.gap_open > best_pair_score;
+                        let sc1 = score_single_decoy(
+                            idx,
+                            *d1,
+                            q1,
+                            r1_has_n,
+                            decoy_gapped,
+                            cfg,
+                            &mut scratch.work,
+                        );
+                        // Exact mathematical upper-bound pruning: if even a perfect R2 decoy hit
+                        // cannot strictly beat `best_pair_score`, skip scoring d2 (zero output change).
+                        if sc1.saturating_add(max_r2) <= best_pair_score {
+                            continue;
+                        }
+                        let sc2 = score_single_decoy(
+                            idx,
+                            *d2,
+                            q2,
+                            r2_has_n,
+                            decoy_gapped,
+                            cfg,
+                            &mut scratch.work,
+                        );
                         let total = sc1.saturating_add(sc2);
                         if total > best_decoy_pair {
                             best_decoy_pair = total;

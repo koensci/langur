@@ -1,5 +1,7 @@
 /target
 /bench_emtab3766/
+/bench_lrgasp/
+/bench_geuvadis/
 **/*.lidx
 **/*.w3idx
 **/*.fq.gz

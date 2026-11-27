@@ -1,5 +1,5 @@
-//! Short-read spliced alignment engine: minimizer seeding, hybrid ungapped +
-//! SIMD banded gapped extension (`block-aligner`), SNP-tolerant splice-edge
+//! Short-read spliced alignment engine: two-tier minimizer seeding, hybrid ungapped +
+//! zero-allocation stack-banded Gotoh affine-gap X-drop extension, SNP-tolerant splice-edge
 //! jumping, strict-inequality selective decoy validation, and paired-end
 //! concordant matching with exact transcriptomic fragment lengths.
 
@@ -61,7 +61,7 @@ pub struct AlignConfig {
     pub pair_is_rc: bool,
     /// Maximum multi-mapping alignments retained per read/pair (default `32`).
     pub max_multi_hits: usize,
-    /// Minimum anchor length to trigger SIMD banded gapped alignment fallback on mismatch clusters.
+    /// Enable zero-allocation stack-banded Gotoh affine-gap X-drop fallback on small-indel clusters.
     pub enable_gapped: bool,
 }
 

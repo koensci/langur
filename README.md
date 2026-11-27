@@ -5,7 +5,7 @@
 `langur` is a standalone, single-binary Rust suite (`index`, `inspect`, `quant`, `delta`) that profiles both binary ($K_1$) and arbitrarily complex ($K_n \ge 2$) alternative splicing events directly from FASTQ files—no genome alignment or BAM generation required.
 
 - **Zero-copy `mmap` index (`.lidx`, magic `LANGUR01`)** with canonical minimizers, annotated junction-bridge seeds, and selective genomic decoys (`< 1 ms` load time).
-- **Hybrid ungapped + SIMD gapped spliced aligner** (`NEON` / `AVX2`) with 1-SNP junction tolerance and strict-inequality decoy screening (`decoy > CSG`).
+- **Hybrid ungapped + banded Gotoh gapped spliced aligner** with two-tier repetitive minimizer screening, 1-SNP junction tolerance, and strict-inequality decoy screening (`decoy > CSG`).
 - **Two-stage quantification**: joint Connected-Component Variational Bayes EM (`CC-VBEM`) with unified 5'-hexamer + 20-bin GC bias correction (`--biascorrect`), microexon-safe effective lengths, overhang-diversity PCR-stack soft-capping, and targeted collapsed Gibbs inferential variance (`Inf_Var`, column 15 of `.psi.gz`).
 - **Covariate-aware Beta-Binomial GLM (`delta`)**: supports both two-group (`-a` / `-b`) and DESeq2-style multivariable formulas (`--design` / `--formula` / `--test`), with constitutive-event exclusion and Spliced vs. Tandem UTR (`TS`/`TE`) stratified Cox–Reid Empirical Bayes dispersion shrinkage.
 - **100% bit-for-bit deterministic** across thread counts and standalone vs. `--batch` runs.

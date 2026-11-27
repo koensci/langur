@@ -1,4 +1,4 @@
-//! Hybrid ungapped + SIMD banded gapped (`block-aligner`) spliced extension,
+//! Hybrid ungapped + zero-allocation stack-banded Gotoh affine-gap X-drop spliced extension,
 //! SNP-tolerant splice-edge jumping (including SNPs 1–3 bp before exon boundaries),
 //! strict-inequality selective decoy validation, and zero-clone reusable scratch buffers.
 
@@ -11,27 +11,17 @@ use crate::seq::{
     append_normalized, append_revcomp_normalized, encode_flank_lsb_from_end, encode_flank_msb,
     ASCII_NORM,
 };
-use block_aligner::cigar::{Cigar, Operation};
-use block_aligner::scan_block::{Block, PaddedBytes};
-use block_aligner::scores::{Gaps, Matrix, NucMatrix};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
-/// Read-only SIMD scoring parameters borrowed independently of scratch buffers.
-pub struct SimdParams {
-    pub nuc_matrix: NucMatrix,
-    pub gaps: Gaps,
-    pub min_block: usize,
-    pub max_block: usize,
-}
-
-/// Reusable scratch buffers for extension and decoy unpacking (split from `SeedScratch`
-/// and normalized read buffers so zero `.clone()` allocations happen on the hot path).
+/// Reusable scratch buffers for extension, banded Gotoh DP traceback, and decoy unpacking
+/// (split from `SeedScratch` and normalized read buffers so zero `.clone()` or per-read
+/// heap allocations happen on the hot path).
 pub struct AlignWorkBuf {
     pub decoy_buf: Vec<u8>,
     pub rev_q_buf: Vec<u8>,
     pub rev_r_buf: Vec<u8>,
-    pub simd: SimdParams,
+    pub dp_trace: Vec<u8>,
 }
 
 /// Reusable per-thread scratch space for single-end and paired-end alignment.
@@ -47,11 +37,7 @@ pub struct AlignScratch {
 }
 
 impl AlignScratch {
-    pub fn new(cfg: &AlignConfig) -> Self {
-        let mut mat = NucMatrix::new_simple(cfg.match_score as i8, cfg.mismatch_penalty as i8);
-        for b in [b'A', b'C', b'G', b'T', b'N'] {
-            mat.set(b'N', b, cfg.ambig_score as i8);
-        }
+    pub fn new(_cfg: &AlignConfig) -> Self {
         Self {
             seed: SeedScratch::default(),
             seed_r2: SeedScratch::default(),
@@ -64,15 +50,7 @@ impl AlignScratch {
                 decoy_buf: Vec::with_capacity(512),
                 rev_q_buf: Vec::with_capacity(256),
                 rev_r_buf: Vec::with_capacity(256),
-                simd: SimdParams {
-                    nuc_matrix: mat,
-                    gaps: Gaps {
-                        open: cfg.gap_open as i8,
-                        extend: cfg.gap_extend as i8,
-                    },
-                    min_block: 32,
-                    max_block: 128,
-                },
+                dp_trace: Vec::with_capacity(160 * 33),
             },
         }
     }
@@ -187,6 +165,7 @@ pub fn align_single_read(
                 &scratch.seed.decoy_candidates,
                 &scratch.fwd_norm,
                 &scratch.rc_norm,
+                q_has_n,
                 cfg,
                 &mut scratch.work,
             );
@@ -542,34 +521,64 @@ fn extend_from_jnc_anchor(
 const MAX_SPLICE_DEPTH: usize = 6;
 
 /// Fast O(1) small-indel pre-screen around a mismatch/divergence offset:
-/// returns `true` iff a 1–8 bp insertion or deletion shift yields `>= 6` base matches in a 10 bp window.
-/// Eliminates ~97% of wasted `block-aligner` SIMD DP calls on unrelated false-positive seed hits.
+/// returns `true` iff a 1–8 bp insertion or deletion shift yields a high-complexity
+/// match improvement (`>= 8/12` or `>= 6/len`, strictly beating unshifted matches by `>= 3`,
+/// with `>= 3` distinct nucleotides matched so homopolymer/poly-A/dinucleotide slices never
+/// trigger spurious gapped DP calls).
 #[inline]
 fn has_small_shift_support(q_slice: &[u8], r_slice: &[u8]) -> bool {
     let qn = q_slice.len();
     let rn = r_slice.len();
+    let base_len = qn.min(rn).min(12);
+    if base_len < 8 {
+        return false;
+    }
+    let mut m0 = 0usize;
+    for i in 0..base_len {
+        if q_slice[i] == r_slice[i] && q_slice[i] != b'N' {
+            m0 += 1;
+        }
+    }
+    #[inline]
+    fn base_bit(b: u8) -> u8 {
+        match b {
+            b'A' => 1,
+            b'C' => 2,
+            b'G' => 4,
+            b'T' => 8,
+            _ => 0,
+        }
+    }
     for shift in 1..=8usize {
         if qn >= shift + 8 && rn >= 8 {
-            let len = (qn - shift).min(rn).min(10);
+            let len = (qn - shift).min(rn).min(12);
+            let min_req = if len >= 12 { 8 } else { 6 };
             let mut m = 0usize;
+            let mut mask = 0u8;
             for i in 0..len {
-                if q_slice[shift + i] == r_slice[i] {
+                let qb = q_slice[shift + i];
+                if qb == r_slice[i] && qb != b'N' {
                     m += 1;
+                    mask |= base_bit(qb);
                 }
             }
-            if m >= 6 {
+            if m >= min_req && m >= m0 + 3 && mask.count_ones() >= 3 {
                 return true;
             }
         }
         if qn >= 8 && rn >= shift + 8 {
-            let len = qn.min(rn - shift).min(10);
+            let len = qn.min(rn - shift).min(12);
+            let min_req = if len >= 12 { 8 } else { 6 };
             let mut m = 0usize;
+            let mut mask = 0u8;
             for i in 0..len {
-                if q_slice[i] == r_slice[shift + i] {
+                let qb = q_slice[i];
+                if qb == r_slice[shift + i] && qb != b'N' {
                     m += 1;
+                    mask |= base_bit(qb);
                 }
             }
-            if m >= 6 {
+            if m >= min_req && m >= m0 + 3 && mask.count_ones() >= 3 {
                 return true;
             }
         }
@@ -578,7 +587,7 @@ fn has_small_shift_support(q_slice: &[u8], r_slice: &[u8]) -> bool {
 }
 
 /// Score a single segment inside one CSG node (forward direction) using fast ungapped scan
-/// with automatic SIMD `block-aligner` gapped fallback on mismatch clusters.
+/// with automatic zero-allocation banded Gotoh gapped fallback on genuine small-indel clusters.
 ///
 /// Returns `(peak_prefix, optional_to_boundary)`:
 /// When `r_slice.len() <= q_slice.len()` and a SNP 1–3 bp before the exon boundary caused
@@ -588,8 +597,10 @@ fn align_node_segment_fwd(
     q_slice: &[u8],
     r_slice: &[u8],
     q_has_n: bool,
+    need_counts: bool,
+    allow_gapped: bool,
     cfg: &AlignConfig,
-    simd: &SimdParams,
+    dp_trace: &mut Vec<u8>,
 ) -> (SegResult, Option<SegResult>) {
     let max_n = q_slice.len().min(r_slice.len());
     // Fast SIMD memcmp path: if `!q_has_n` and `q_slice[..max_n] == r_slice[..max_n]`,
@@ -676,9 +687,10 @@ fn align_node_segment_fwd(
         None
     };
 
-    // Trigger SIMD banded gapped fallback only when a genuine small-indel shift is supported
+    // Trigger zero-allocation banded Gotoh gapped fallback only when a genuine small-indel shift is supported
     let reached_end = best_len == max_n;
     let needs_gapped = cfg.enable_gapped
+        && allow_gapped
         && q_slice.len() >= 10
         && r_slice.len() >= 10
         && ((!reached_end && to_boundary.is_none()) || max_consec_mm >= 2 || mismatches >= 3);
@@ -690,7 +702,9 @@ fn align_node_segment_fwd(
             first_mm_pos.unwrap_or(0).saturating_sub(1)
         };
         if has_small_shift_support(&q_slice[div..], &r_slice[div..]) {
-            if let Some(g) = simd_gapped_prefix(q_slice, r_slice, simd) {
+            if let Some(g) =
+                banded_gapped_prefix(q_slice, r_slice, cfg, peak.score, need_counts, dp_trace)
+            {
                 if g.score > peak.score {
                     peak = g;
                     if (g.ref_used as usize) == r_slice.len() {
@@ -704,49 +718,225 @@ fn align_node_segment_fwd(
     (peak, to_boundary)
 }
 
-/// Run `block-aligner` SIMD banded X-drop alignment with traceback on `(q_slice, r_slice)`.
-fn simd_gapped_prefix(q_slice: &[u8], r_slice: &[u8], simd: &SimdParams) -> Option<SegResult> {
-    let r_cap = r_slice.len().min(q_slice.len() + 32);
-    let r_win = &r_slice[..r_cap];
-    let q_padded = PaddedBytes::from_bytes::<NucMatrix>(q_slice, simd.max_block);
-    let r_padded = PaddedBytes::from_bytes::<NucMatrix>(r_win, simd.max_block);
+/// Zero-allocation stack-banded Gotoh affine-gap X-drop prefix aligner (`HALF_BAND = 12`,
+/// band width `25`, X-drop `24`). Uses the exact `open + (len - 1) * extend` affine gap penalty.
+/// Runs traceback ONLY when `need_counts` is true AND `best_score > ungapped_peak_score`.
+fn banded_gapped_prefix(
+    q_slice: &[u8],
+    r_slice: &[u8],
+    cfg: &AlignConfig,
+    ungapped_peak_score: i32,
+    need_counts: bool,
+    dp_trace: &mut Vec<u8>,
+) -> Option<SegResult> {
+    const HALF_BAND: usize = 12;
+    const BW: usize = 2 * HALF_BAND + 1; // 25
+    const NEG_INF: i32 = -1_000_000_000;
+    const X_DROP: i32 = 24;
 
-    let mut block = Block::<true, true>::new(q_padded.len(), r_padded.len(), simd.max_block);
-    let x_drop = 24;
-    block.align(
-        &q_padded,
-        &r_padded,
-        &simd.nuc_matrix,
-        simd.gaps,
-        simd.min_block..=simd.max_block,
-        x_drop,
-    );
-    let res = block.res();
-    if res.score <= 0 || res.query_idx == 0 || res.reference_idx == 0 {
+    let qlen = q_slice.len();
+    let rlen = r_slice.len().min(qlen + HALF_BAND);
+    if qlen == 0 || rlen == 0 {
         return None;
     }
 
-    let mut cigar = Cigar::new(res.query_idx, res.reference_idx);
-    block
-        .trace()
-        .cigar_eq(&q_padded, &r_padded, res.query_idx, res.reference_idx, &mut cigar);
+    let match_sc = cfg.match_score;
+    let mm_pen = cfg.mismatch_penalty;
+    let ambig_sc = cfg.ambig_score;
+    let gap_open = cfg.gap_open;
+    let gap_ext = cfg.gap_extend;
+
+    if need_counts {
+        let needed = (qlen + 1) * BW;
+        if dp_trace.len() < needed {
+            dp_trace.resize(needed, 0);
+        }
+    }
+
+    let mut prev_h = [NEG_INF; BW];
+    let mut prev_f = [NEG_INF; BW];
+    let mut cur_h = [NEG_INF; BW];
+    let mut cur_e = [NEG_INF; BW];
+    let mut cur_f = [NEG_INF; BW];
+
+    // Row 0: (0, 0) = 0, (0, j) = gap_open + (j - 1) * gap_ext
+    prev_h[HALF_BAND] = 0;
+    if need_counts {
+        dp_trace[HALF_BAND] = 0;
+    }
+    let j0_hi = rlen.min(HALF_BAND);
+    for j in 1..=j0_hi {
+        let sc = gap_open + ((j - 1) as i32) * gap_ext;
+        let off = HALF_BAND + j;
+        prev_h[off] = sc;
+        if need_counts {
+            dp_trace[off] = 1 | if j > 1 { 4 } else { 0 };
+        }
+    }
+
+    let mut best_score = 0i32;
+    let mut best_i = 0usize;
+    let mut best_j = 0usize;
+
+    for i in 1..=qlen {
+        let qb = q_slice[i - 1];
+        let j_lo = i.saturating_sub(HALF_BAND);
+        let j_hi = (i + HALF_BAND).min(rlen);
+        if j_lo > j_hi {
+            break;
+        }
+        cur_h.fill(NEG_INF);
+        cur_e.fill(NEG_INF);
+        cur_f.fill(NEG_INF);
+
+        let row_off = i * BW;
+        let mut row_max = NEG_INF;
+
+        for j in j_lo..=j_hi {
+            let off = (j + HALF_BAND) - i;
+            if j == 0 {
+                let f_sc = gap_open + ((i - 1) as i32) * gap_ext;
+                cur_f[off] = f_sc;
+                cur_h[off] = f_sc;
+                if f_sc > row_max {
+                    row_max = f_sc;
+                }
+                if need_counts {
+                    dp_trace[row_off + off] = 2 | if i > 1 { 8 } else { 0 };
+                }
+                continue;
+            }
+
+            // Diagonal (i-1, j-1) lives at the exact same slot `off` in `prev_h`
+            let rb = r_slice[j - 1];
+            let sub = if qb == b'N' || rb == b'N' {
+                ambig_sc
+            } else if qb == rb {
+                match_sc
+            } else {
+                mm_pen
+            };
+            let diag = prev_h[off] + sub;
+
+            // Horizontal E from (i, j-1) -> slot `off - 1` in cur_h / cur_e
+            let (e_sc, e_ext) = if off > 0 {
+                let open_e = cur_h[off - 1] + gap_open;
+                let ext_e = cur_e[off - 1] + gap_ext;
+                if ext_e >= open_e {
+                    (ext_e, 4u8)
+                } else {
+                    (open_e, 0u8)
+                }
+            } else {
+                (NEG_INF, 0u8)
+            };
+            cur_e[off] = e_sc;
+
+            // Vertical F from (i-1, j) -> slot `off + 1` in prev_h / prev_f
+            let (f_sc, f_ext) = if off + 1 < BW {
+                let open_f = prev_h[off + 1] + gap_open;
+                let ext_f = prev_f[off + 1] + gap_ext;
+                if ext_f >= open_f {
+                    (ext_f, 8u8)
+                } else {
+                    (open_f, 0u8)
+                }
+            } else {
+                (NEG_INF, 0u8)
+            };
+            cur_f[off] = f_sc;
+
+            let (h_sc, h_src) = if diag >= e_sc && diag >= f_sc {
+                (diag, 0u8)
+            } else if e_sc >= f_sc {
+                (e_sc, 1u8)
+            } else {
+                (f_sc, 2u8)
+            };
+            cur_h[off] = h_sc;
+
+            if need_counts {
+                dp_trace[row_off + off] = h_src | e_ext | f_ext;
+            }
+            if h_sc > row_max {
+                row_max = h_sc;
+            }
+            if h_sc > best_score {
+                best_score = h_sc;
+                best_i = i;
+                best_j = j;
+            }
+        }
+
+        prev_h = cur_h;
+        prev_f = cur_f;
+
+        if row_max < best_score - X_DROP {
+            break;
+        }
+    }
+
+    if best_score <= ungapped_peak_score || best_i == 0 || best_j == 0 {
+        return None;
+    }
+
+    if !need_counts {
+        return Some(SegResult {
+            score: best_score,
+            ref_used: best_j as u32,
+            read_used: best_i as u32,
+            matches: 0,
+            mismatches: 0,
+            indels: 0,
+        });
+    }
 
     let mut matches: u32 = 0;
     let mut mismatches: u32 = 0;
     let mut indels: u32 = 0;
-    for op_len in cigar.to_vec() {
-        match op_len.op {
-            Operation::Eq => matches += op_len.len as u32,
-            Operation::X | Operation::M => mismatches += op_len.len as u32,
-            Operation::I | Operation::D => indels += op_len.len as u32,
-            _ => {}
+    let mut ci = best_i;
+    let mut cj = best_j;
+    let mut state = 0u8; // 0 = H, 1 = E, 2 = F
+
+    while ci > 0 || cj > 0 {
+        let off = (cj + HALF_BAND) - ci;
+        let tb = dp_trace[ci * BW + off];
+        if state == 0 {
+            let h_src = tb & 3;
+            if h_src == 0 {
+                let qb = q_slice[ci - 1];
+                let rb = r_slice[cj - 1];
+                if qb == rb && qb != b'N' {
+                    matches += 1;
+                } else {
+                    mismatches += 1;
+                }
+                ci -= 1;
+                cj -= 1;
+            } else if h_src == 1 {
+                state = 1;
+            } else {
+                state = 2;
+            }
+        } else if state == 1 {
+            indels += 1;
+            cj -= 1;
+            if (tb & 4) == 0 {
+                state = 0;
+            }
+        } else {
+            indels += 1;
+            ci -= 1;
+            if (tb & 8) == 0 {
+                state = 0;
+            }
         }
     }
 
     Some(SegResult {
-        score: res.score,
-        ref_used: res.reference_idx as u32,
-        read_used: res.query_idx as u32,
+        score: best_score,
+        ref_used: best_j as u32,
+        read_used: best_i as u32,
         matches,
         mismatches,
         indels,
@@ -785,7 +975,7 @@ fn extend_forward(
     let (peak, to_boundary) = if avail_ref > 0 {
         let s0 = (nd.gene_seq_offset + node_off) as usize;
         let r_slice = &gene_seq[s0..s0 + avail_ref];
-        align_node_segment_fwd(q_slice, r_slice, q_has_n, cfg, &work.simd)
+        align_node_segment_fwd(q_slice, r_slice, q_has_n, true, true, cfg, &mut work.dp_trace)
     } else {
         (
             SegResult {
@@ -1050,7 +1240,7 @@ fn extend_backward(
             )
         } else {
             // Even on mismatch fallback, only reverse at most `r_end + 32` reference bases
-            // (matching `simd_gapped_prefix`'s window cap), never a full 8 kb 3' UTR!
+            // (covering `banded_gapped_prefix`'s half-band cap), never a full 8 kb 3' UTR!
             work.rev_q_buf.clear();
             work.rev_q_buf.extend(q[..r_end].iter().rev().copied());
             work.rev_r_buf.clear();
@@ -1061,7 +1251,15 @@ fn extend_backward(
                     .rev()
                     .copied(),
             );
-            align_node_segment_fwd(&work.rev_q_buf, &work.rev_r_buf, q_has_n, cfg, &work.simd)
+            align_node_segment_fwd(
+                &work.rev_q_buf,
+                &work.rev_r_buf,
+                q_has_n,
+                true,
+                true,
+                cfg,
+                &mut work.dp_trace,
+            )
         }
     } else {
         (
@@ -1348,13 +1546,14 @@ pub fn score_decoy_candidates(
     decoys: &[DecoyCandidate],
     fwd_q: &[u8],
     rc_q: &[u8],
+    q_has_n: bool,
     cfg: &AlignConfig,
     work: &mut AlignWorkBuf,
 ) -> i32 {
     let mut best = i32::MIN;
     for dc in decoys {
         let q = if dc.read_is_fwd_on_decoy { fwd_q } else { rc_q };
-        let sc = score_single_decoy(idx, *dc, q, cfg, work);
+        let sc = score_single_decoy(idx, *dc, q, q_has_n, true, cfg, work);
         if sc > best {
             best = sc;
         }
@@ -1366,6 +1565,8 @@ pub fn score_single_decoy(
     idx: &MmapIndex,
     dc: DecoyCandidate,
     q: &[u8],
+    q_has_n: bool,
+    allow_gapped: bool,
     cfg: &AlignConfig,
     work: &mut AlignWorkBuf,
 ) -> i32 {
@@ -1390,13 +1591,17 @@ pub fn score_single_decoy(
     );
     let anchor_in_win = doff - win_start;
 
-    // Disjoint borrows on `work.decoy_buf`, `work.rev_q_buf`, `work.rev_r_buf`, and `work.simd` — zero clones!
+    // Disjoint borrows on `work.decoy_buf`, `work.rev_q_buf`, `work.rev_r_buf`, and `work.dp_trace` — zero clones!
+    // Decoy slices are 2-bit unpacked (guaranteed A/C/G/T, no 'N'), so passing `q_has_n` safely enables
+    // the SIMD memcmp fast path, and `need_counts = false` skips DP traceback completely!
     let fwd_sc = align_node_segment_fwd(
         &q[rpos..],
         &work.decoy_buf[anchor_in_win..],
-        true,
+        q_has_n,
+        false,
+        allow_gapped,
         cfg,
-        &work.simd,
+        &mut work.dp_trace,
     )
     .0
     .score;
@@ -1407,9 +1612,17 @@ pub fn score_single_decoy(
         work.rev_r_buf.clear();
         work.rev_r_buf
             .extend(work.decoy_buf[..anchor_in_win].iter().rev().copied());
-        align_node_segment_fwd(&work.rev_q_buf, &work.rev_r_buf, true, cfg, &work.simd)
-            .0
-            .score
+        align_node_segment_fwd(
+            &work.rev_q_buf,
+            &work.rev_r_buf,
+            q_has_n,
+            false,
+            allow_gapped,
+            cfg,
+            &mut work.dp_trace,
+        )
+        .0
+        .score
     } else {
         0
     };
