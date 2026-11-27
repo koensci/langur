@@ -162,6 +162,7 @@ Benchmarked on real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ
 | **5-Way Shared Polymorphic** (`n = 4,693`, `CE/AA/AD/RI`) | **0.9507 / 0.9350 / 0.0688** | 0.9456 / 0.9291 / 0.0728 | 0.9105 / 0.8974 / 0.1012 | 0.6832 / 0.6688 / 0.1747 | 0.9099 / 0.8822 / 0.0896 *(`JC`)* |
 | **5-Way Binary (`K0/K1`, `n = 2,008`)** | **0.9467 / 0.9292 / 0.0740** | 0.9424 / 0.9245 / 0.0778 | 0.9126 / 0.8994 / 0.1032 | 0.7272 / 0.7166 / 0.1599 | 0.9414 / 0.9188 / 0.0767 *(`JC`)* |
 | **5-Way Complex (`K_n ≥ 2`, `n = 2,685`)** | **0.9551 / 0.9413 / 0.0648** | 0.9493 / 0.9340 / 0.0692 | 0.9090 / 0.8959 / 0.0996 | 0.6510 / 0.6327 / 0.1859 | 0.8863 / 0.8533 / 0.0993 *(`JC`)* |
+| **Gene / Isoform MARD vs. `Salmon 2`** (`TPM ≥ 1`) | **0.0410 / 0.0678** *(3.2× / 2.1× closer)* | 0.1305 / 0.1399 | 0.1402 / 0.1557 | *(reference)* | *(no TPM output)* |
 
 *`Whippet2-turbo` index builds reflect commit `94a491f`; `E-MTAB-3766` `quant` timing/memory reflects commit `400f0f3` and TPM/stratified GLM reflects commit `c725028` (identical quantification accuracy). All memory figures report macOS `/usr/bin/time -l` peak memory footprint. Even under `SUPPA2`'s own exact-event PacBio truth on binary `K0/K1` events (`n = 2,339`), Langur achieves `0.9403 / 0.9232 / 0.0734` vs. `Salmon 2.12.0 + SUPPA2 2.4` `0.7393 / 0.7299 / 0.1563` (-53% MAE). See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full stratified tables, sensitivity checks, ablations, and mathematical specifications.*
 
