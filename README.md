@@ -133,7 +133,9 @@ langur -t 16 delta \
 
 ---
 
-## Human-Scale Benchmark Highlights (`E-MTAB-3766`)
+## Human-Scale Benchmark Highlights
+
+### Simulated Human Cohort (`E-MTAB-3766`, GRCh37.71)
 
 Benchmarked on the 480M-read human paired-end dataset (`E-MTAB-3766`, Soneson et al. *Genome Biology* 2016; Ensembl GRCh37.71 protein-coding: 20,410 genes, 145,342 transcripts, 1,000 truly differentially spliced genes; 16 threads, `--biascorrect`, Apple Silicon arm64) against original `Whippet.jl` v1.6.2 (Julia 1.6, 1T) and our multithreaded Julia 1.9 fork (`Whippet2-turbo`):
 
@@ -147,7 +149,20 @@ Benchmarked on the 480M-read human paired-end dataset (`E-MTAB-3766`, Soneson et
 | **`delta` GLM** (223k events, `-r 5 -s 2`) | **2.52 s** · **189 MB** | 27.38 s · 1.87 GB | 85.51 s *(`--legacy` MC)* · 609 MB | **33.9× vs. legacy · 10.9× & 9.9× RAM vs. W2** |
 | **Differential Splicing** (`TPR / FDR @0.05` · AUPRC) | **0.336 / 5.4%** *(2.0% spliced)* · **0.564** *(0.567 spliced)* | 0.306 / 5.3% *(1.3% spliced)* · 0.551 *(0.549 spliced)* | 0.744 / 81.5% *(66.9% at `\|ΔΨ\|≥0.1`)* · 0.352 | **15× lower FDR vs. legacy**; **10.6× lower FDR & +0.17 AUPRC vs. `rMATS`**; **beats `Whippet2-turbo` on TPR, AUROC & AUPRC** |
 
-*`Whippet2-turbo` index build reflects commit `94a491f`; `quant` timing and memory rows reflect commit `400f0f3`; TPM and stratified GLM rows reflect commit `c725028` (identical quantification accuracy). See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full tables, ablations, and mathematical specifications.*
+### Real Human RNA-seq vs. PacBio HiFi Ground Truth (LRGASP WTC11, GRCh38)
+
+Benchmarked on real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78M` pairs = `91.57M` reads, `--biascorrect`, 16T) against full GENCODE v38 basic (`60,649` genes, `111,832` transcripts, GRCh38) with orthogonal long-read ground-truth PSI computed from pooled 3-replicate matched PacBio HiFi Iso-Seq alignments (ENCODE `ENCSR507JOF`; `LR ≥ 20`, `SR ≥ 10` across all 3 tools):
+
+| Metric (GRCh38 / WTC11) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(Julia 1.9, 16T)* | Original `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
+|---|---:|---:|---:|---|
+| **GRCh38 Index Build** (60,649 genes) | **14.8 s** · **5.19 GB** *(incl. 1.31 Gb decoys)* | 28.6 s · 5.33 GB *(no decoys)* | 753.8 s *(12m 34s)* · 9.87 GB | **50.9× vs. W1 · 1.93× vs. W2** |
+| **GRCh38 Index Load** | **0.11 ms** (`mmap`) | 1.83 s | 1.71 s | **>15,000× faster** |
+| **WTC11 Rep 1 `quant`** (91.6M reads) | **72.7 s** (`1.26M reads/s`) · **1.35 GB** | 82.3 s (`1.11M/s`) · 9.10 GB | 1,467.4 s (`62.4k/s`) · 7.00 GB | **20.2× vs. W1 · 1.13× vs. W2**; **6.75× less RAM** |
+| **Mapped Pairs** (of 45.78M) | **30.00M (65.5%)** *(382k decoy-filtered)* | 24.70M (53.9%) | 24.70M (53.9%) | **+5.30M more mapped pairs** (`+11.6 pp`) |
+| **PacBio HiFi Polymorphic PSI** (`n = 13,359`, `r / ρ / MAE`) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | **27/27 clean sweep** across all 6 motifs + `K0/K1` & `K_n ≥ 2` |
+| **Complex Events (`K_n ≥ 2`)** (`n = 7,294`, `r / ρ / MAE`) | **0.9352 / 0.8995 / 0.0746** | 0.9333 / 0.8974 / 0.0780 | 0.9018 / 0.8662 / 0.1017 | **+0.0334 $r$ & -27% MAE vs. W1** |
+
+*`Whippet2-turbo` index builds reflect commit `94a491f`; `E-MTAB-3766` `quant` timing/memory reflects commit `400f0f3` and TPM/stratified GLM reflects commit `c725028` (identical quantification accuracy). Memory figures report macOS `/usr/bin/time -l` peak memory footprint (index build reports peak RSS on `E-MTAB-3766`). See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full stratified tables, ablations, and mathematical specifications.*
 
 ---
 

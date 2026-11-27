@@ -8,7 +8,7 @@
 
 Alignment-free quantification on **Contiguous Splice Graphs (CSGs)**, pioneered by Whippet (Sterne-Weiler et al., *Molecular Cell* 2018), made it possible to profile both binary ($K_1$) and arbitrarily complex ($K_n \ge 2$) alternative splicing events directly from FASTQ files without genome alignment or BAM generation. However, scaling CSG analysis to modern human cohorts exposes four key limitations in legacy implementations: ungapped matching drops reads near indels and splice-proximal SNPs; transcriptome-only indexing permits reads from diverged processed pseudogenes and intronic loci to force-map onto annotated genes; per-gene EM and naive Beta intervals understate ambiguity in paralog families and complex splicing hubs; and legacy two-group pooled Beta Monte Carlo testing (`whippet-delta`) cannot adjust for covariates and suffers severe false-discovery inflation under biological overdispersion.
 
-**Langur** is a ground-up Rust re-architecture of the CSG workflow (`index`, `inspect`, `quant`, `delta`) designed for bulk short-read RNA-seq. It combines a zero-copy memory-mapped splice-graph and selective genomic decoy index (`< 1 ms` load time), hybrid ungapped + gapped spliced alignment with 1-SNP junction tolerance, joint connected-component Variational Bayes isoform quantification with unified 5'-hexamer/GC bias correction, targeted Gibbs inferential variance (`Inf_Var`) for complex $K_n \ge 2$ events, and a covariate-aware Beta-Binomial generalized linear model (`delta`) with event-class stratified Empirical Bayes dispersion shrinkage. On the 480M-read human `E-MTAB-3766` benchmark (Ensembl GRCh37.71, 20,410 genes, 16 threads, `--biascorrect`), Langur builds the human index in **22.6 s** (**15.1× faster** than original `Whippet.jl`), quantifies **80M reads in 60.4 s** (**26.6× faster** than original `Whippet.jl`, **1.34× faster** than `Whippet2-turbo`, our multithreaded Julia 1.9 fork) and the full **6-sample cohort (480M reads) in 6 min 13 s (`373.1 s`, `1.29M reads/s`)** using **~1.7 GB RAM** (**4.3×–5.9× less memory** than `Whippet.jl` / `Whippet2-turbo`), reduces gene and isoform TPM error by **5.5× / 2.8×** vs. original `Whippet.jl` (**3.2× / 1.7×** vs. `Whippet2-turbo`), and completes cohort-wide differential splicing across 223k events (`-r 5 -s 2`) in **2.5 s** while achieving **5.4% realized FDR** across all events (**2.0%** across spliced events; `0.5642 / 0.5672` AUPRC, outperforming `Whippet2-turbo` on TPR, AUROC, and AUPRC) at a 5% nominal target—a **15× reduction in false discoveries** over legacy Whippet (`81.5%` FDR) and **10.6× lower FDR** than published `rMATS` (`57.1%`).
+**Langur** is a ground-up Rust re-architecture of the CSG workflow (`index`, `inspect`, `quant`, `delta`) designed for bulk short-read RNA-seq. It combines a zero-copy memory-mapped splice-graph and selective genomic decoy index (`< 1 ms` load time), hybrid ungapped + gapped spliced alignment with 1-SNP junction tolerance, joint connected-component Variational Bayes isoform quantification with unified 5'-hexamer/GC bias correction, targeted Gibbs inferential variance (`Inf_Var`) for complex $K_n \ge 2$ events, and a covariate-aware Beta-Binomial generalized linear model (`delta`) with event-class stratified Empirical Bayes dispersion shrinkage. On the 480M-read human `E-MTAB-3766` benchmark (Ensembl GRCh37.71, 20,410 genes, 16 threads, `--biascorrect`), Langur builds the human index in **22.6 s** (**15.1× faster** than original `Whippet.jl`), quantifies **80M reads in 60.4 s** (**26.6× faster** than original `Whippet.jl`, **1.34× faster** than `Whippet2-turbo`, our multithreaded Julia 1.9 fork) and the full **6-sample cohort (480M reads) in 6 min 13 s (`373.1 s`, `1.29M reads/s`)** using **~1.7 GB RAM** (**4.3×–5.9× less memory** than `Whippet.jl` / `Whippet2-turbo`), reduces gene and isoform TPM error by **5.5× / 2.8×** vs. original `Whippet.jl` (**3.2× / 1.7×** vs. `Whippet2-turbo`), and completes cohort-wide differential splicing across 223k events (`-r 5 -s 2`) in **2.5 s** while achieving **5.4% realized FDR** across all events (**2.0%** across spliced events; `0.5642 / 0.5672` AUPRC, outperforming `Whippet2-turbo` on TPR, AUROC, and AUPRC) at a 5% nominal target—a **15× reduction in false discoveries** over legacy Whippet (`81.5%` FDR) and **10.6× lower FDR** than published `rMATS` (`57.1%`). On real human WTC11 RNA-seq against full GRCh38 GENCODE v38 (60,649 genes, LRGASP `ENCSR673UKZ`, 91.6M Illumina reads), Langur builds the index in **14.8 s** (**50.9× faster** than `Whippet.jl`, **1.93× faster** than `Whippet2-turbo`), quantifies the library in **72.7 s** at **1.35 GB** peak footprint (**20.2× / 1.13× faster**, **6.75× less RAM** than `Whippet2-turbo`, **+5.30M more mapped pairs**), and sweeps **27/27** motif and complexity strata against matched PacBio HiFi Iso-Seq ground-truth PSI (`n = 13,359` polymorphic events: $r = 0.9338$, $\rho = 0.8715$, $\text{MAE} = 0.0789$).
 
 ---
 
@@ -260,9 +260,58 @@ We benchmarked Langur against our optimized native Apple Silicon Julia 1.9 fork 
 - **42/42 workspace unit and integration tests pass** (`cargo test --workspace`, zero warnings), verifying exact Whippet 2 CSG/motif parity (`ENSMUSG00000038685` 18-path, `nrf2test` 6-path), bounded outward bridge-edge sweeps on multi-exon skips (`LTBP2` topology), FR/RF/unstranded pairing, strict-inequality pseudogene decoy ties vs. diverged decoys, 1-SNP splice jumps, banded Gotoh indel recovery, CC-VBEM paralog routing (`>99.5%` to expressed parent), 15 bp microexon PSI unbiasedness, PCR-stack soft-capping, Gibbs ~90% CI coverage across 200 $K_2$ replicates, 80%-constitutive + stratified EB dispersion recovery, batch confounding (`~ batch + condition`), interactions, continuous covariates, pivoted-QR collinearity reduction, and 100% bit-for-bit determinism across 1 vs. 4 threads.
 - **200-gene 3v3 synthetic cohort (600k reads, 4 threads):** `index` ran in **0.032 s** (185× faster than `Whippet2-turbo`), 6-sample `--batch` `quant` in **0.377 s** (126× faster, 17× lower RAM), and `delta` in **0.039 s** (122× faster, 95× lower RAM), achieving **100% sensitivity (100/100)** at **0.00% realized FDR** ($\Delta\Psi$ $r = 0.9935$ vs. truth).
 
-### 7.3 Planned Real-Data Validations (Optional Next Steps)
-- **LRGASP short-read vs. long-read ground truth:** Stratified PSI Pearson $r$ and MAE against matched PacBio HiFi / ONT long reads across `CE`, `AA`/`AD`, `RI`, and complex $K_n \ge 2$ events (mirroring MAJIQ V3, 2026).
-- **Real multi-sample cohort null splits:** Empirical FPR at $\alpha = 0.05$ on random same-condition splits of real human replicates (e.g., GTEx) and multivariable batch/donor adjustment (mirroring MAJIQ V2, 2023).
+### 7.3 Real-Data Orthogonal Long-Read Validation: LRGASP WTC11 (GRCh38, Illumina vs. PacBio HiFi)
+
+Following the MAJIQ V3 (2026) short-read vs. long-read validation protocol, we evaluated all three CSG generations on real human WTC11 iPSC RNA-seq from the **LRGASP Consortium** (Pardo-Palacios et al., *Nature Methods* 2024) against the full **GRCh38 primary assembly + GENCODE v38 basic annotation** (**60,649 genes**, **111,832 transcripts**, 417,213 CSG nodes):
+
+- **Short-read Illumina input:** ENCODE `ENCSR673UKZ` Replicate 1 (`ENCFF766OAK` R1, `ENCFF644AQW` R2; **45.78M pairs = 91.57M unstranded 100 bp reads**, `--biascorrect`, 16 threads for Langur and `Whippet2-turbo`, 1 thread for Original `Whippet.jl` v1.6.2).
+- **Orthogonal PacBio HiFi Iso-Seq ground truth:** Pooled 3-replicate GRCh38 full-length non-chimeric (FLNC) PacBio HiFi alignments from matched WTC11 cells (ENCODE `ENCSR507JOF`: `ENCFF373TKM`, `ENCFF985LGZ`, `ENCFF388HXU`; `MAPQ >= 20`, strand-oriented via `ts` tag). For each canonical CSG event (`CE`, `AA`, `AD`, `RI`, `AF`, `AL`), long-read inclusion and strict intron-skipping exclusion counts were tallied directly from PacBio CIGAR blocks/introns, requiring $\ge 20$ spanning long reads (`129,004` events) and $\ge 10$ short reads in all three tools (`117,719` shared matched events; **`13,359` polymorphic events** with $0.05 \le \Psi_{\text{LR}} \le 0.95$).
+
+#### A. GRCh38 Index Build & WTC11 Quantification Performance
+| Stage (GRCh38 GENCODE v38, `--biascorrect`) | **Langur** (Rust, 16T, arm64) | `Whippet2-turbo` (`94a491f`, Julia 1.9, 16T, arm64) | Original `Whippet.jl` v1.6.2 (Julia 1.6, 1T, Rosetta 2) | Langur Advantage |
+|---|---:|---:|---:|---|
+| **Index Build** (60,649 genes, 112k tx) | **14.8 s** · **5.19 GB** footprint (6.16 GB RSS) · 1,055 MB *(incl. 1.31 Gb decoys)* | 28.6 s · 5.33 GB footprint (5.50 GB RSS) · 691 MB *(no decoys)* | 753.8 s *(12m 34s)* · 9.87 GB footprint (9.94 GB RSS) · 634 MB | **50.9× vs. W1 · 1.93× vs. W2** *(incl. decoys)* |
+| **Index Load** | **0.11 ms** (`mmap`) | 1.83 s | 1.71 s | **>15,000× faster** |
+| **WTC11 Rep 1 `quant`** (91.6M reads) | **72.7 s** (**1.26M reads/s**) · **1.35 GB** footprint (2.83 GB RSS) | 82.3 s (1.11M reads/s) · 9.10 GB footprint (9.35 GB RSS) | 1,467.4 s *(24m 27s, 62.4k reads/s)* · 7.00 GB footprint (7.07 GB RSS) | **20.2× vs. W1 · 1.13× vs. W2**; **5.2×–6.75× lower footprint** |
+| **Mapped Pairs** (of 45.78M) | **30,003,946 (65.5%)** *(381,896 decoy-filtered)* | 24,700,206 (53.9%) | 24,700,206 (53.9%) | **+5.30M more mapped pairs** (`+11.6 pp`) |
+
+*Post-alignment stages in Langur (`vbem = 3.31 s`, `events = 0.79 s`, `write = 0.06 s`) take `4.16 s` total across 394,702 events vs. `10.44 s` in `Whippet2-turbo` and `86.87 s` in `Whippet.jl`.*
+
+#### B. Stratified Short-Read vs. PacBio HiFi Ground-Truth PSI Concordance
+
+**Polymorphic canonical events ($0.05 \le \Psi_{\text{LR}} \le 0.95$, $\text{LR} \ge 20$, $\text{SR} \ge 10$ across all 3 tools; $n = 13{,}359$):**
+
+| Stratum | $n$ | **Langur ($r$ / $\rho$ / MAE)** | `Whippet2-turbo` ($r$ / $\rho$ / MAE) | Original `Whippet.jl` ($r$ / $\rho$ / MAE) |
+|---|---:|---|---|---|
+| **All canonical** | 13,359 | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 |
+| **CE** (Core exon) | 8,704 | **0.9251 / 0.7852 / 0.0761** | 0.9217 / 0.7822 / 0.0783 | 0.9121 / 0.7644 / 0.0870 |
+| **AA** (Alt. acceptor) | 1,699 | **0.9266 / 0.9145 / 0.0758** | 0.9247 / 0.9143 / 0.0808 | 0.8440 / 0.8517 / 0.1494 |
+| **AD** (Alt. donor) | 1,390 | **0.9221 / 0.9079 / 0.0821** | 0.9154 / 0.8988 / 0.0870 | 0.8567 / 0.8425 / 0.1289 |
+| **RI** (Retained intron) | 815 | **0.9029 / 0.8862 / 0.0899** | 0.8996 / 0.8787 / 0.0955 | 0.8760 / 0.8537 / 0.1109 |
+| **AF** (Alt. first exon) | 489 | **0.9088 / 0.8535 / 0.0965** | 0.9062 / 0.8388 / 0.0992 | 0.8936 / 0.8158 / 0.1096 |
+| **AL** (Alt. last exon) | 262 | **0.8425 / 0.7417 / 0.1098** | 0.8281 / 0.7071 / 0.1183 | 0.8248 / 0.7168 / 0.1232 |
+| **Binary ($K_0 / K_1$)** | 6,065 | **0.9332 / 0.8260 / 0.0841** | 0.9304 / 0.8229 / 0.0870 | 0.9107 / 0.8117 / 0.1030 |
+| **Complex ($K_n \ge 2$)** | 7,294 | **0.9352 / 0.8995 / 0.0746** | 0.9333 / 0.8974 / 0.0780 | 0.9018 / 0.8662 / 0.1017 |
+
+**All matched canonical events ($\text{LR} \ge 20$, $\text{SR} \ge 10$ across all 3 tools; $n = 117{,}719$):**
+
+| Stratum | $n$ | **Langur ($r$ / $\rho$ / MAE)** | `Whippet2-turbo` ($r$ / $\rho$ / MAE) | Original `Whippet.jl` ($r$ / $\rho$ / MAE) |
+|---|---:|---|---|---|
+| **All canonical** | 117,719 | **0.9801** / 0.6774 / **0.0162** | 0.9790 / **0.6825** / 0.0165 | 0.9738 / 0.6631 / 0.0185 |
+| **CE** | 106,036 | **0.9682** / 0.5697 / **0.0128** | 0.9664 / **0.5758** / 0.0130 | 0.9649 / 0.5438 / 0.0132 |
+| **AA** | 3,587 | **0.9676 / 0.9409 / 0.0491** | 0.9651 / 0.9372 / 0.0513 | 0.9352 / 0.9216 / 0.0855 |
+| **AD** | 2,988 | **0.9644 / 0.9393 / 0.0527** | 0.9614 / 0.9381 / 0.0558 | 0.9394 / 0.9163 / 0.0778 |
+| **RI** | 2,004 | **0.9720** / 0.9341 / 0.0533 | 0.9704 / **0.9376** / **0.0509** | 0.9599 / 0.9272 / 0.0599 |
+| **AF** | 2,255 | **0.9777 / 0.8147 / 0.0280** | 0.9772 / 0.7923 / 0.0289 | 0.9735 / 0.7751 / 0.0318 |
+| **AL** | 849 | **0.9500** / 0.7729 / **0.0480** | 0.9434 / **0.7730** / 0.0500 | 0.9422 / 0.7585 / 0.0519 |
+| **Binary ($K_0 / K_1$)** | 91,814 | **0.9806 / 0.5518 / 0.0114** | 0.9790 / 0.5505 / 0.0118 | 0.9763 / 0.5391 / 0.0125 |
+| **Complex ($K_n \ge 2$)** | 25,905 | **0.9765** / 0.8589 / 0.0330 | 0.9760 / **0.8667** / **0.0328** | 0.9666 / 0.8384 / 0.0396 |
+
+**Key findings:**
+1. **27/27 clean sweep on real polymorphic splicing:** Across all 9 polymorphic strata (`All canonical`, `CE`, `AA`, `AD`, `RI`, `AF`, `AL`, `Binary`, and `Complex`) and all 3 metrics ($r$, $\rho$, MAE), Langur achieves the highest accuracy of all three generations—with the largest gains over original `Whippet.jl` on `AA` ($\text{MAE } 0.1494 \to 0.0758$, **-49%**), `AD` ($0.1289 \to 0.0821$, **-36%**), and complex $K_n \ge 2$ events ($r\ 0.9018 \to 0.9352$, $\text{MAE } 0.1017 \to 0.0746$, **-27%**), while also improving every single stratum over `Whippet2-turbo`. On per-tool own-coverage events ($\text{LR} \ge 20$, tool $\text{SR} \ge 10$), Langur covers `120,127` events (`14,004` polymorphic: $r = 0.9286$, $\rho = 0.8663$, $\text{MAE} = 0.0821$) vs. `Whippet2-turbo` `119,842` (`13,848` polymorphic: $r = 0.9289$, $\rho = 0.8666$, $\text{MAE} = 0.0842$) and `Whippet.jl` `124,279` (`14,775` polymorphic: $r = 0.9003$, $\rho = 0.8386$, $\text{MAE} = 0.1073$).
+2. **Real-data GRCh38 efficiency at 60k-gene scale:** Even with `1.31 Gb` of selective genomic decoys (`381,896` pairs decoy-filtered), Langur maps **+5.30M more real Illumina pairs** (`65.5%` vs. `53.9%`) in **72.7 s** (beating `Whippet2-turbo`'s `82.3 s` and **20.2× faster** than `Whippet.jl`) at **1.35 GB** peak memory footprint (**6.75× lower** than `Whippet2-turbo`).
+
+*In-progress next validation (Section 7.4 planned):* **Real multi-sample cohort null splits & multivariable batch adjustment (`Geuvadis ERP001942`)** — empirical null FPR across all $\binom{6}{3}/2 = 10$ exact same-sex, same-center 3v3 donor splits and sequencing-center confounding adjustment (`~ center + sex`), mirroring MAJIQ V2 (2023).
 
 ---
 
@@ -278,3 +327,4 @@ We benchmarked Langur against our optimized native Apple Silicon Julia 1.9 fork 
 8. McCarthy D.J., Chen Y., Smyth G.K. (2012). Differential expression analysis of multifactor RNA-Seq experiments with respect to biological variation. *Nucleic Acids Research*, 40(10):4288–4297.
 9. Varadhan R., Roland C. (2008). Simple and globally convergent methods for accelerating the convergence of any EM algorithm. *Scandinavian Journal of Statistics*, 35(2):335–353.
 10. Hansen K.D., Brenner S.E., Dudoit S. (2010). Biases in Illumina transcriptome sequencing caused by random hexamer priming. *Nucleic Acids Research*, 38(12):e131.
+11. Pardo-Palacios F.J., Wang D., Reese F., et al. (2024). Systematic assessment of long-read RNA-seq methods for transcript identification and quantification (LRGASP). *Nature Methods*, 21:1349–1363.
