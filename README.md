@@ -139,7 +139,7 @@ Benchmarked on the 480M-read human paired-end dataset (`E-MTAB-3766`, Soneson et
 
 | Stage | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(Julia 1.9, 16T)* | Original `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
 |---|---:|---:|---:|---|
-| **Index Build** | **22.6 s** · 4.71 GB RSS | 233.0 s · 8.74 GB RSS | 340.8 s · 8.58 GB RSS | **15.1× vs. W1 · 10.3× vs. W2** |
+| **Index Build** | **22.6 s** · 4.71 GB RSS | 27.6 s · 4.90 GB RSS | 340.8 s · 8.58 GB RSS | **15.1× vs. W1 · 1.22× vs. W2** *(incl. 1.1 Gb decoys)* |
 | **Index Load** | **0.04–0.30 ms** (`mmap`) | 6.20 s | 7.33 s | **>20,000× faster** |
 | **Sample 1 `quant`** (80M reads) | **60.4 s** (`1.33M reads/s`) · **1.69 GB** | 81.1 s (`987k/s`) · 9.62 GB | 1,608.4 s (`49.7k/s`) · 7.19 GB | **26.6× vs. W1 · 1.34× vs. W2**; **5.7× less RAM** |
 | **6-Sample `--batch`** (480M reads) | **373.1 s** (`1.29M reads/s`) · **1.67 GB** | 433.8 s (`1.11M/s`) · 9.83 GB | *9,650.6 s* *(6× extrap.)* · 7.19 GB | **25.9× vs. W1 · 1.16× vs. W2**; **5.9× less RAM** |
@@ -147,7 +147,7 @@ Benchmarked on the 480M-read human paired-end dataset (`E-MTAB-3766`, Soneson et
 | **`delta` GLM** (223k events, `-r 5 -s 2`) | **2.52 s** · **189 MB** | 27.38 s · 1.87 GB | 85.51 s *(`--legacy` MC)* · 609 MB | **33.9× vs. legacy · 10.9× & 9.9× RAM vs. W2** |
 | **Differential Splicing** (`TPR / FDR @0.05` · AUPRC) | **0.336 / 5.4%** *(2.0% spliced)* · **0.564** *(0.567 spliced)* | 0.306 / 5.3% *(1.3% spliced)* · 0.551 *(0.549 spliced)* | 0.744 / 81.5% *(66.9% at `\|ΔΨ\|≥0.1`)* · 0.352 | **15× lower FDR vs. legacy**; **10.6× lower FDR & +0.17 AUPRC vs. `rMATS`**; **beats `Whippet2-turbo` on TPR, AUROC & AUPRC** |
 
-*`Whippet2-turbo` timing and memory rows reflect commit `400f0f3`; TPM and stratified GLM rows reflect commit `c725028` (identical quantification accuracy). See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full tables, ablations, and mathematical specifications.*
+*`Whippet2-turbo` index build reflects commit `94a491f`; `quant` timing and memory rows reflect commit `400f0f3`; TPM and stratified GLM rows reflect commit `c725028` (identical quantification accuracy). See **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)** for full tables, ablations, and mathematical specifications.*
 
 ---
 
