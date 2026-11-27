@@ -1,5 +1,8 @@
 # Langur
 
+[![CI](https://github.com/koensci/langur/actions/workflows/ci.yml/badge.svg)](https://github.com/koensci/langur/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Fast, statistically calibrated Contiguous Splice Graph (CSG) quantification and differential splicing for bulk short-read RNA-seq in Rust.**
 
 `langur` (`index`, `inspect`, `quant`, `delta`) profiles both binary ($K_1$) and complex ($K_n \ge 2$) alternative splicing—plus gene and isoform expression—directly from FASTQ files without genome alignment or BAM generation.
@@ -142,6 +145,13 @@ Real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78
 | **Batch Adjustment (`~ center + sex`)** | **-15.7%** spliced $\hat\phi$ · **-35%** center `\|ΔΨ\|` bias · **2×** `chrX/Y` hits (`1.67×` spliced enrich.) | -13.9% spliced $\hat\phi$ · 1.09× spliced `chrX/Y` enrich. | **3,276** unadj. calls (`1.04×` null `chrX/Y` enrich.) |
 
 *Full stratified tables, sensitivity checks, `Whippet2-turbo` commit details, and Geuvadis `TS/TE` corner-interaction notes: **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.*
+
+### Real RF-Stranded RBP Knockdown & Production Checks
+
+- **ENCODE `PTBP1` shRNA KD (`K562`, `ENCSR527IVX` vs. `ENCSR129RWD`, `255.3M` RF-stranded reads):** `--stranded-reverse` (`73.1%`) collapses **18.7×** under wrong-strand `--stranded` (`3.9%`) and eliminates opposite-strand antisense bleed (`TUBA1C`, `UBB`, `RBBP4`, `PIEZO1`, `FDPS`). Full 4-sample `--batch` runs in **`2m 59s` (`178.7 s`, `1.43M/s`) at `1.18 GB` RAM**; `delta` runs in **`1.39 s` (`129 MB`)**, calling **`58/58` Spliced hits (`0` spurious `TS`/`TE`)** at `FDR ≤ 0.05` while recovering `PTBP1` `3.2×` knockdown, `PTBP2` `8.2×` expression rescue + exon-10 NMD switch (`ΔΨ = +0.714`), **`MAP4K4` 9 bp microexon as the `#1` genome-wide hit (`ΔΨ = +0.742`, `FDR = 8.64e-6`)**, and canonical targets `SMAP1`, `GABBR1`, `RTN4`, `CTNND1`, `TPM1`, and `PICALM`.
+- **Single-end real human WTC11 (`45.8M` R1 reads, GRCh38):** `76.8 s`, **`0.97 GB` peak RAM**, `r = 0.9234 / MAE = 0.0875` vs. PacBio HiFi (`r = 0.9799` SE-vs-PE).
+- **Variable-length trimmed FASTQs & real `index --bam`:** Zero NaNs/Infs on `10–100 bp` + all-`'N'` + lowercase FASTQs (`r = 0.9929` PE); full GRCh38 `index --bam` with real ENCODE `PTBP1` BAM (`19.94 s`, `+615` BAM-derived nodes, `389` supported PSI rows, `100` `ALT_UNIQ` novel junctions).
+- **CI:** Verified on Linux (`x86_64`) and macOS (`arm64`) with `42/42` tests and zero Clippy warnings (`-D warnings`).
 
 ---
 
