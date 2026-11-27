@@ -136,16 +136,16 @@ Real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78
 
 14 real human CEU LCL donors (`UNIGE` `6F + 2M`, `ICMB` `2F + 4M`; `706.9M` 75 bp reads, 16T, `--biascorrect`) — all 10 exact 3v3 same-condition null splits (`6F UNIGE`, `-r 5 -s 2`) and imbalanced multivariable batch adjustment (`~ center + sex`):
 
-| Metric (Geuvadis 14-Donor Cohort, GRCh38) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(16T)* | Legacy `Whippet.jl` Beta MC |
+| Metric (Geuvadis 14-Donor Cohort, GRCh38) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(16T)* | Original `Whippet.jl` v1.6.2 *(1T, `+`-stripped)*¹ |
 |---|---:|---:|---:|
-| **14-Sample `quant --batch`** (706.9M reads) | **347.3 s** (`2.03M/s`) · **1.39 GB** | 429.2 s (`1.65M/s`) · 9.88 GB | *(SRA FASTQ parser issue `#135`)* |
-| **Mapped Pairs** *(of 353.4M)* | **86.05%** (`304.2M`; **+43.8M** vs. W2) | 73.66% (`260.3M`) | — |
-| **10 Null Splits — Mean / Med FPs** (`FDR ≤ 0.05` or `P ≥ 0.95`) | **0.2 / 0.0** *(9/10 splits = 0 FPs)* | 0.8 / 0.0 *(4× more FPs)* | **7,250.2 / 7,145.0** *(4,080 @ \|ΔΨ\| ≥ 0.1)* |
-| **10 Null Splits — FPR `@p≤0.05`** (All / Spliced) | **1.38% / 0.70%** | 1.44% / 0.83% | 4.44% / 3.31% *(call rate)* |
-| **14-Sample `delta` (`~ center + sex`)** | **7.02 s** · **177 MB** | 46.51 s · 2.86 GB | 86.94 s *(unadj. only; `--max-variance 0.05`)* |
-| **Batch Adjustment (`~ center + sex`)** | **-15.7%** spliced $\hat\phi$ · **-35%** center `\|ΔΨ\|` bias · **2×** `chrX/Y` hits (`1.67×` spliced enrich.) | -13.9% spliced $\hat\phi$ · 1.09× spliced `chrX/Y` enrich. | **3,276** unadj. calls (`1.04×` null `chrX/Y` enrich.) |
+| **14-Sample `quant`** (706.9M reads) | **347.3 s** (`2.03M/s`) · **1.39 GB** | 429.2 s (`1.65M/s`) · 9.88 GB | **11,145.4 s** (`3h 06m` serial, `63.4k/s`) · 6.30 GB |
+| **Mapped Pairs** *(of 353.4M)* | **86.05%** (`304.2M`; **+43.8M** vs. W1/W2) | 73.66% (`260.3M`) | 73.66% (`260.3M`, exact W2 parity) |
+| **10 Null Splits — Mean / Med FPs** (`FDR ≤ 0.05` or `P ≥ 0.95`) | **0.2 / 0.0** *(9/10 splits = 0 FPs)* | 0.8 / 0.0 *(4× more FPs)* | **1,508.9 / 1,402.0** *(1,202.9 @ \|ΔΨ\| ≥ 0.1; 92% `TS`/`TE`)* |
+| **10 Null Splits — FPR `@p≤0.05`** (All / Spliced) | **1.38% / 0.70%** | 1.44% / 0.83% | 1.11% / 0.12% *(call rate; `120.1` spliced FPs)* |
+| **14-Sample `delta` (`~ center + sex`)** | **7.02 s** · **177 MB** | 46.51 s · 2.86 GB | 104.85 s · 1.23 GB *(unadj. only)* |
+| **Batch Adjustment (`~ center + sex`)** | **-15.7%** spliced $\hat\phi$ · **-35%** center `\|ΔΨ\|` bias · **2×** `chrX/Y` hits (`1.67×` spliced enrich.) | -13.9% spliced $\hat\phi$ · 1.09× spliced `chrX/Y` enrich. | **90** unadj. calls (`87` `TS`/`TE`, `0.68×` depleted `chrX/Y`, `0` spliced `chrX/Y`) |
 
-*Full stratified tables, sensitivity checks, `Whippet2-turbo` commit details, and Geuvadis `TS/TE` corner-interaction notes: **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.*
+*¹ Original `Whippet.jl` v1.6.2 required stripping raw SRA line-3 `+ERR...` headers to bare `+` (`timbitz/Whippet.jl#135`; `Whippet2-turbo` and `Langur` parse raw SRA FASTQs natively). Full stratified tables, sensitivity checks, `Whippet2-turbo` commit details, and Geuvadis `TS/TE` corner-interaction notes: **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.*
 
 ### Real RF-Stranded RBP Knockdown & Production Checks
 
