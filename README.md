@@ -101,7 +101,7 @@ langur -t 16 delta \
 
 3 vs. 3 paired-end 101 bp replicates (`20,410` protein-coding genes, `145,342` transcripts, `1,000` truly DS genes; 16T, `--biascorrect`, Apple Silicon arm64):
 
-| Stage | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(Julia 1.9, 16T)* | `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
+| Stage | **Langur** *(Rust, 16T)* | [`Whippet2-turbo`](https://github.com/koensci/Whippet2.jl) *(Julia 1.9, 16T)* | `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
 |---|---:|---:|---:|---|
 | **Index Build** *(uncompressed FASTA)* | **14.6 s** · 4.36 GB *(incl. 1.10 Gb decoys)* | 23.0 s · 4.21 GB | 287.1 s · 8.10 GB | **19.7× vs. W1 · 1.58× vs. W2** |
 | **Index Load** | **0.03 ms** (`mmap`) | 6.20 s | 7.33 s | **>200,000× faster** |
@@ -147,6 +147,6 @@ Real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78
 
 ## Attribution, Transparency & License
 
-- **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph (CSG) representation and motif taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018; `Whippet.jl`), alongside independent implementations of published statistical concepts from `Salmon` and `edgeR`/`DESeq2`, plus overhang-diversity QC for PCR junction-stack artifacts highlighted in `MAJIQ`.
+- **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph (CSG) representation and motif taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018; `Whippet.jl`), alongside independent implementations of published statistical concepts from `Salmon` and `edgeR`/`DESeq2`, plus overhang-diversity QC for PCR junction-stack artifacts highlighted in `MAJIQ`. Users needing 100% drop-in compatibility with legacy Julia 1.9 `.jls` indexes can use [Whippet2-turbo](https://github.com/koensci/Whippet2.jl).
 - **AI-Assisted Development:** Developed iteratively with AI-assisted coding and review (**Google Gemini**), with all biological invariants and benchmarks verified via automated unit, parity, and full-human test suites.
 - **License:** MIT — see [LICENSE](LICENSE).

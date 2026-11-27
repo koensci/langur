@@ -187,7 +187,7 @@ Routing ambiguous reads via converged Stage 1 posteriors into each gene's CSG:
 
 ### 7.1 Simulated Human Cohort: `E-MTAB-3766` (GRCh37.71, 480M Reads)
 
-Benchmarked on `E-MTAB-3766` (Soneson et al., 2016: 3 vs. 3 paired-end 101 bp replicates, **20,410 protein-coding genes**, **145,342 transcripts**, **1,000 truly DS genes**, 40M pairs/sample = **480M reads**, 16T, `--biascorrect`, Apple Silicon arm64, `/usr/bin/time -l`) against our multithreaded Julia 1.9 fork (`Whippet2-turbo`), original `Whippet.jl` v1.6.2 (Julia 1.6, 1T, Rosetta 2), and published callers.
+Benchmarked on `E-MTAB-3766` (Soneson et al., 2016: 3 vs. 3 paired-end 101 bp replicates, **20,410 protein-coding genes**, **145,342 transcripts**, **1,000 truly DS genes**, 40M pairs/sample = **480M reads**, 16T, `--biascorrect`, Apple Silicon arm64, `/usr/bin/time -l`) against our multithreaded Julia 1.9 fork ([`Whippet2-turbo`](https://github.com/koensci/Whippet2.jl)), original `Whippet.jl` v1.6.2 (Julia 1.6, 1T, Rosetta 2), and published callers.
 
 #### A. Runtime, Throughput & Memory
 | Stage (`E-MTAB-3766`, `--biascorrect`) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(Julia 1.9, 16T)* | Original `Whippet.jl` v1.6.2 *(1T)* | Langur Advantage |
