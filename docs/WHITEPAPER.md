@@ -205,7 +205,7 @@ Following MAJIQ V3 (Aicher *et al.*, 2026), we benchmarked all three CSG generat
 
 *Langur post-alignment stages total `4.16 s` (`vbem 3.31 s · events 0.79 s · write 0.06 s`) across 394,702 events vs. `10.44 s` in `Whippet2-turbo` and `86.87 s` in `Whippet.jl`. ¹ `majiq-v3` post-BAM stages are fast (`sj 8.88 s · build 1.39 s · psi-coverage 1.66 s · quantify 1.94 s` = `13.9 s`, plus `~10 s` `samtools index`), with total runtime and memory dominated by `STAR`. Minor background I/O overlapped `salmon quant` (`12.0×` avg CPU = `2,260 s` user); retired instructions directly confirm the efficiency gap (`30.4T` in `Salmon 2` vs. `10.6T` in Langur, 2.9× fewer).*
 
-#### B. 3-Way CSG Stratified PacBio HiFi Concordance (Polymorphic, $n = 13{,}359$)
+#### B. 3-Way CSG Stratified PacBio HiFi Concordance (Non-Constitutive, $n = 13{,}359$)
 | Stratum ($0.05 \le \Psi_{\text{LR}} \le 0.95$) | $n$ | **Langur ($r$ / $\rho$ / MAE)** | `Whippet2-turbo` ($r$ / $\rho$ / MAE) | Original `Whippet.jl` ($r$ / $\rho$ / MAE) |
 |---|---:|---|---|---|
 | **All canonical** | 13,359 | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 |
@@ -233,13 +233,13 @@ Following MAJIQ V3 (Aicher *et al.*, 2026), we benchmarked all three CSG generat
 | **Binary ($K_0 / K_1$)** | 91,814 | **0.9806 / 0.5518 / 0.0114** | 0.9790 / 0.5505 / 0.0118 | 0.9763 / 0.5391 / 0.0125 |
 | **Complex ($K_n \ge 2$)** | 25,905 | **0.9765** / 0.8589 / 0.0330 | 0.9760 / **0.8667** / **0.0328** | 0.9666 / 0.8384 / 0.0396 |
 
-*Per-tool own-coverage ($\text{LR} \ge 20$, tool $\text{SR} \ge 10$): Langur `120,127` events (`14,004` poly: `0.9286 / 0.8663 / 0.0821`), `Whippet2-turbo` `119,842` (`13,848` poly: `0.9289 / 0.8666 / 0.0842`), `Whippet.jl` `124,279` (`14,775` poly: `0.9003 / 0.8386 / 0.1073`).*
+*Per-tool own-coverage ($\text{LR} \ge 20$, tool $\text{SR} \ge 10$): Langur `120,127` events (`14,004` non-constitutive: `0.9286 / 0.8663 / 0.0821`), `Whippet2-turbo` `119,842` (`13,848`: `0.9289 / 0.8666 / 0.0842`), `Whippet.jl` `124,279` (`14,775`: `0.9003 / 0.8386 / 0.1073`).*
 
 </details>
 
 #### C. 6-Way Paradigm Comparison & Exact-Event Sensitivity Checks
 
-**Strictly matched 6-way polymorphic intersection (`CE/AA/AD/RI`, $n = 3{,}672$, Node-Level PacBio Truth):**
+**Strictly matched 6-way non-constitutive intersection (`CE/AA/AD/RI`, $n = 3{,}672$, Node-Level PacBio Truth):**
 
 | Stratum | $n$ | **Langur** ($r$ / $\rho$ / MAE) | `Whippet2-turbo` | `Whippet.jl` | **`STAR + MAJIQ v3`** | **`STAR + rMATS JC`** | **`Salmon 2 + SUPPA2`** |
 |---|---:|---|---|---|---|---|---|
@@ -253,7 +253,7 @@ Following MAJIQ V3 (Aicher *et al.*, 2026), we benchmarked all three CSG generat
 
 **Exact-event sensitivity checks (`MAJIQ v3`, `SUPPA2`, and `rMATS` under their own exact PacBio estimands):**
 
-| Sensitivity Check (Polymorphic, Exact Competitor-Event Truth) | $n$ | **Langur ($r$ / $\rho$ / MAE)** | `Whippet2-turbo` | `Whippet.jl` | Target Baseline ($r$ / $\rho$ / MAE) |
+| Sensitivity Check (Non-Constitutive, Exact Competitor-Event Truth) | $n$ | **Langur ($r$ / $\rho$ / MAE)** | `Whippet2-turbo` | `Whippet.jl` | Target Baseline ($r$ / $\rho$ / MAE) |
 |---|---:|---|---|---|---|
 | **vs. `STAR + MAJIQ v3`** — All annotated SJ LSVs (`6,194` LSVs, `.jnc` ratio) | 12,899 | **0.9602 / 0.9445 / 0.0645** | 0.9458 / 0.9289 / 0.0747 | — | **0.9603 / 0.9455 / 0.0632** *(`MAJIQ v3`)* |
 | **vs. `STAR + MAJIQ v3`** — Binary SJ LSVs (`K = 2`, `4,278` LSVs, `.jnc` ratio) | 8,556 | **0.9633** / 0.9470 / 0.0637 | 0.9484 / 0.9302 / 0.0741 | — | 0.9629 / **0.9477 / 0.0622** *(`MAJIQ v3`)* |
@@ -264,7 +264,7 @@ Following MAJIQ V3 (Aicher *et al.*, 2026), we benchmarked all three CSG generat
 | **vs. `STAR + rMATS JC`** — Binary ($K_0/K_1$, identical estimand) | 2,747 | **0.9398 / 0.8728 / 0.0692** | 0.9356 / 0.8712 / 0.0726 | 0.9094 / 0.8514 / 0.0931 | **0.9507 / 0.8892 / 0.0665** *(`rMATS JC`)* |
 | **vs. `STAR + rMATS JC`** — Complex ($K_n \ge 2$, different estimands) | 3,744 | 0.7942 / 0.7190 / 0.1216 | 0.7906 / 0.7158 / 0.1245 | 0.7616 / 0.6979 / 0.1449 | 0.8732 / 0.8110 / 0.0979 *(`rMATS JC`)* |
 
-*Reference intersections: 5-way excluding MAJIQ (`n = 4,693` poly, node truth): Langur `0.9507 / 0.9350 / 0.0688` vs. `Whippet2-turbo` `0.9456 / 0.0728`, `STAR + rMATS JC` `0.9099 / 0.0896` (`Complex K_n >= 2`, `n = 2,685`: `0.9551 / 0.0648` vs. `0.8863 / 0.0993`, -35% MAE), `Salmon 2 + SUPPA2` `0.6832 / 0.1747`. All `16,591` polymorphic `MAJIQ v3` LSVs (`35,917` connections incl. IR & `9,254` de novo connections): `0.9491 / 0.9272 / 0.0689` (`Splice junctions`: `0.9535 / 0.0670`; `IR`: `0.8466 / 0.0867`; `De novo`: `0.8523 / 0.0702`). 4-way alignment-free across all 6 event types (`n = 6,436` poly, node truth): Langur `0.9408 / 0.9257 / 0.0749` vs. `Salmon 2 + SUPPA2` `0.6515 / 0.6379 / 0.1863`.*
+*Reference intersections: 5-way excluding MAJIQ (`n = 4,693` non-constitutive, node truth): Langur `0.9507 / 0.9350 / 0.0688` vs. `Whippet2-turbo` `0.9456 / 0.0728`, `STAR + rMATS JC` `0.9099 / 0.0896` (`Complex K_n >= 2`, `n = 2,685`: `0.9551 / 0.0648` vs. `0.8863 / 0.0993`, -35% MAE), `Salmon 2 + SUPPA2` `0.6832 / 0.1747`. All `16,591` non-constitutive `MAJIQ v3` LSVs (`35,917` connections incl. IR & `9,254` de novo connections): `0.9491 / 0.9272 / 0.0689` (`Splice junctions`: `0.9535 / 0.0670`; `IR`: `0.8466 / 0.0867`; `De novo`: `0.8523 / 0.0702`). 4-way alignment-free across all 6 event types (`n = 6,436` non-constitutive, node truth): Langur `0.9408 / 0.9257 / 0.0749` vs. `Salmon 2 + SUPPA2` `0.6515 / 0.6379 / 0.1863`.*
 
 #### D. Real-Data Gene & Isoform Expression Concordance vs. `Salmon 2`
 Stage 1 abundance across `60,649` GENCODE v38 genes (`15,378` at $\text{TPM} \ge 1$) and `111,334` non-duplicate transcripts (`27,220` at $\text{TPM} \ge 1$) vs. selective-alignment `Salmon 2` (`--gcBias --seqBias`):
@@ -276,9 +276,9 @@ Stage 1 abundance across `60,649` GENCODE v38 genes (`15,378` at $\text{TPM} \ge
 | Original `Whippet.jl` | 0.9017 / 0.9595 | 0.9624 | 0.1402 | 0.8127 / 0.8780 | 0.9266 | 0.1557 |
 
 **Key findings:**
-1. **27/27 clean sweep across CSG generations:** Langur ranks #1 across every polymorphic event type and complexity stratum, cutting `AA` MAE **-49%**, `AD` **-36%**, and complex $K_n \ge 2$ MAE **-27%** vs. `Whippet.jl` while improving every stratum over `Whippet2-turbo`.
+1. **27/27 clean sweep across CSG generations:** Langur ranks #1 across every non-constitutive event type and complexity stratum, cutting `AA` MAE **-49%**, `AD` **-36%**, and complex $K_n \ge 2$ MAE **-27%** vs. `Whippet.jl` while improving every stratum over `Whippet2-turbo`.
 2. **Expression parity with `Salmon 2`, decisive splicing win over `Salmon 2 + SUPPA2`:** Langur's CC-VBEM tracks `Salmon 2` **3.2×–3.4× closer** at the gene level and **2.1×–2.3× closer** at the isoform level than legacy Whippet, yet avoids the isoform-deconvolution error that leaks into `SUPPA2` PSI—beating `Salmon 2 + SUPPA2` across **27/27 strata** even under SUPPA2's own exact-event truth (**-53% MAE** on binary $K_0/K_1$) while indexing **7.5× faster**, running **2.6× faster**, and using **9.1× less memory**.
-3. **Parity with `STAR + MAJIQ v3` and `STAR + rMATS-turbo` at order-of-magnitude lower cost:** Even on MAJIQ v3's own `6,194` polymorphic annotated splice-junction LSVs (`12,899` connections, including `4,343` complex `K ≥ 3`), alignment-free Langur `.jnc.gz` ratios match `STAR + MAJIQ v3` head-to-head (`ΔMAE = 0.0013`), while beating both genome-aligned tools on shared binary CSG events and `RI`. On complex hubs, both CSG nodes (Langur) and LSV junctions (`MAJIQ v3`) excel on their respective estimands, with Langur building the index **46–47× faster** (**28×** smaller), running **5.1–7.2× faster** at **23.5× less memory** with **zero BAM files**, and quantifying `AF`/`AL`, tandem UTRs, and TPMs in one pass (`STAR + MAJIQ v3` remains uniquely suited for BAM-direct *de novo* junction discovery without `index --bam`).
+3. **Parity with `STAR + MAJIQ v3` and `STAR + rMATS-turbo` at order-of-magnitude lower cost:** Even on MAJIQ v3's own `6,194` non-constitutive annotated splice-junction LSVs (`12,899` connections, including `4,343` complex `K ≥ 3`), alignment-free Langur `.jnc.gz` ratios match `STAR + MAJIQ v3` head-to-head (`ΔMAE = 0.0013`), while beating both genome-aligned tools on shared binary CSG events and `RI`. On complex hubs, both CSG nodes (Langur) and LSV junctions (`MAJIQ v3`) excel on their respective estimands, with Langur building the index **46–47× faster** (**28×** smaller), running **5.1–7.2× faster** at **23.5× less memory** with **zero BAM files**, and quantifying `AF`/`AL`, tandem UTRs, and TPMs in one pass (`STAR + MAJIQ v3` remains uniquely suited for BAM-direct *de novo* junction discovery without `index --bam`).
 
 ### 7.2 Real-Cohort Null Calibration & Multivariable Batch Adjustment: Geuvadis (`ERP001942`)
 
@@ -318,7 +318,7 @@ All $\binom{6}{3}/2 = 10$ unique 3v3 partitions of the 6 same-sex, same-center d
 
 **Key findings:**
 1. **Cohort speed, memory & alignment recovery:** Langur quantifies all 14 human donors **32.1× faster** at **4.5× lower peak memory** than legacy `Whippet.jl`—and **1.24× faster** at **7.1× lower memory** than `Whippet2-turbo`—while recovering **+43.8M** more mapped pairs (`+12.4 pp`) than both. On 14-sample differential testing, Langur runs **14.9× faster** (**7.0×** less memory) than `Whippet.jl` and **6.6× faster** (**16.2×** less memory) than `Whippet2-turbo`.
-2. **>6,000× false-positive reduction on real human null splits:** Langur (`Inf_Var`) produces **zero false positives in 9/10 splits** (`0.2` mean / `0.0` median)—a **7,545× / 6,015×** reduction vs. native `Whippet.jl` (`Prob ≥ 0.95` / `Prob ≥ 0.95 & |ΔΨ| ≥ 0.1`), **600× / 317×** on Spliced events alone, and **4×** fewer than `Whippet2-turbo`—with a well-calibrated polymorphic spliced null tail (`|ΔΨ| ≥ 0.01`: `FPR@0.05 = 2.83%`, `q5 = 0.069`, `q10 = 0.101`) further tightened by `Inf_Var` weighting.
+2. **>6,000× false-positive reduction on real human null splits:** Langur (`Inf_Var`) produces **zero false positives in 9/10 splits** (`0.2` mean / `0.0` median)—a **7,545× / 6,015×** reduction vs. native `Whippet.jl` (`Prob ≥ 0.95` / `Prob ≥ 0.95 & |ΔΨ| ≥ 0.1`), **600× / 317×** on Spliced events alone, and **4×** fewer than `Whippet2-turbo`—with a well-calibrated non-constitutive spliced null tail (`|ΔΨ| ≥ 0.01`: `FPR@0.05 = 2.83%`, `q5 = 0.069`, `q10 = 0.101`) further tightened by `Inf_Var` weighting.
 3. **Batch debiasing & `chrX`/`chrY` signal recovery:** Adjusting for `~ center + sex` cuts residual spliced overdispersion $\hat\phi$ by **15.7%** (`0.0383 → 0.0323`; `TS`/`TE` `0.2638 → 0.2429`), lowers apparent sex `|ΔΨ|` bias across `87` pure concordant autosomal center artifacts by **35%** (`0.080 → 0.052`, `0` leaks at `FDR ≤ 0.05`; e.g., center-driven `ZNF302` drops from unadjusted sex bias `-0.155` to `+0.067`, `FDR = 1.000`), and **doubles** `chrX`/`chrY` hits at $p \le 0.01$ (`11 → 22` All; `4 → 8` Spliced, enrichment `1.21× → 1.67×`, recovering X-linked `UBE2A`, `KDM6A`, `ENOX2`, `CXorf38`, `TRMT2B`, `ARHGEF6`, `HEPH`, `CDK16`, `HDAC6`), whereas native `Whippet.jl` calls `90` unadjusted events that are `96.7%` `TS`/`TE` noise (`88` autosomal, `0.68×` depleted on `chrX`/`chrY`). *³ All `13` `FDR ≤ 0.05` events in Langur `~ center + sex` (`0` Spliced) are single-stratum (2-donor) `UNIGE_M` or `ICMB_F` tandem UTR/TSS (`TS`/`TE`) corner outliers (e.g., `SLC35B2`, `BANP`, `MDM2`, `TUBB3`), where an additive main-effects logit model without a `center:sex` interaction term simultaneously attributes both `center` and `sex` effects.*
 
 ### 7.3 Real RF-Stranded Differential Splicing & Orthogonal eCLIP Validation (`ENCODE PTBP1` KD, 5-Way)
@@ -362,7 +362,7 @@ To benchmark real biological differential splicing, strand-specific antisense se
 *⁴ `MAJIQ v3` filtered out `PTBP2` exon 10 (`passed = 0`) because NMD in control K562 cells reduced exon-10 inclusion reads to `2.0` and `8.0` in control replicates (`< quantify_minreads = 10`) vs. `340.0` and `382.0` in KD. Pairwise dynamic cassette-exon (`|ΔΨ| ≥ 0.1`) concordance: Langur vs. Whippet2 `r = 0.888` (`n = 3,740`), Langur vs. MAJIQ v3 `r = 0.769` (`n = 1,932`), Langur vs. rMATS `r = 0.583–0.613` (`n = 4,283–4,500`), Langur vs. SUPPA2 `r = 0.471` (`n = 1,832`).*
 
 **Additional production robustness checks:**
-- **Single-end real human WTC11 (`ENCFF766OAK_R1.fastq.gz`, `45.8M` reads, GRCh38, `-t 16 --biascorrect`):** Completes in **`76.8 s`** at **`0.97 GB` peak RAM** (`67.4%` mapped, `717k` decoy-filtered), achieving polymorphic PacBio HiFi concordance **`r = 0.9234 / ρ = 0.8618 / MAE = 0.0875`** (`n = 12,670`, `LR ≥ 20, SR ≥ 10`; all-matched `n = 112,048`: `r = 0.9757 / MAE = 0.0181`) and **`r = 0.9799`** direct SE-vs-PE concordance (`n = 12,600`).
+- **Single-end real human WTC11 (`ENCFF766OAK_R1.fastq.gz`, `45.8M` reads, GRCh38, `-t 16 --biascorrect`):** Completes in **`76.8 s`** at **`0.97 GB` peak RAM** (`67.4%` mapped, `717k` decoy-filtered), achieving non-constitutive PacBio HiFi concordance **`r = 0.9234 / ρ = 0.8618 / MAE = 0.0875`** (`n = 12,670`, `LR ≥ 20, SR ≥ 10`; all-matched `n = 112,048`: `r = 0.9757 / MAE = 0.0181`) and **`r = 0.9799`** direct SE-vs-PE concordance (`n = 12,600`).
 - **Variable-length messy FASTQ stress test:** `200k` uncompressed post-`fastp` pairs mixing `10/16/17/25/50/75/100 bp` reads, all-`'N'` reads, lowercase bases, and custom `+header` lines complete in `1.25 s` (PE) / `1.22 s` (SE) with **`0` NaNs / `0` Infs** across all `.psi.gz`/`.tpm.gz` tables and high concordance vs. full WTC11 PE (`r = 0.9929` PE / `0.9779` SE).
 - **Real ENCODE `index --bam` supplementation:** Full GRCh38 `index --bam` (`ENCFF436JMY` `chr21`/`chr22` slice, `--bam-min-reads 3`, incl. `ERCC-*` contigs and secondary/supplementary records) builds in **`19.94 s`** with zero panics (`+615` CSG nodes: `417,213 → 417,828`), passes `inspect` `mmap + CRC32` in **`0.038 ms`** (`bam_novel=true`), and yields **`389` supported new/updated PSI rows** (of `799`) plus **`100` `ALT_UNIQ` novel junctions** (`117.8` reads) in `500k` pairs (`3.34 s` 4-sample `quant`, `0.58 s` `delta`).
 - **Cross-platform CI:** Automated GitHub Actions workflow (`.github/workflows/ci.yml`) runs `cargo test --workspace` (`42/42` tests), `cargo clippy --workspace --all-targets -- -D warnings` (`0` warnings), and `cargo build --release` on both `ubuntu-latest` (`x86_64`) and `macos-latest` (`arm64`).

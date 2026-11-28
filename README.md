@@ -111,14 +111,14 @@ Evaluated on real human WTC11 paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1, 91
 | **Index time / disk** | **14.8 s / 1.06 GB** | 28.6 s / 0.69 GB | 753.8 s / 0.63 GB | 110.8 s / 8.51 GB | 700.7 s / 29.5 GB | 683.1 s / 29.5 GB |
 | **End-to-end time / RAM** | **72.7 s / 1.35 GB** | 82.3 s / 9.10 GB | 1,467.4 s / 7.00 GB | 190.5 s / 12.24 GB | 370.9 s¹ / 31.64 GB *(+5.1 GB BAM)* | 526.1 s / 31.64 GB *(+5.1 GB BAM)* |
 | **Mapped pairs** *(of 45.78M)* | **30.00M (65.5%)** | 24.70M (53.9%) | 24.70M (53.9%) | **30.44M (66.5%)** | 30.55M (66.7%) uniq. + 1.87M multi | 30.55M (66.7%) uniq. + 1.87M multi |
-| **3-way CSG polymorphic** (`n = 13,359`, 6 event types) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | — | *(LSV junctions + IR; no TPMs)* | *(no `AF`/`AL`/`TS`/`TE` or TPMs)* |
-| **6-way shared polymorphic** (`n = 3,672`) | **0.9568 / 0.9402 / 0.0653** | 0.9518 / 0.9350 / 0.0697 | 0.9188 / 0.9052 / 0.0966 | 0.6980 / 0.6802 / 0.1694 | 0.8924 / 0.8755 / 0.0948 | 0.9186 / 0.8876 / 0.0854 *(`JC`)* |
+| **3-way CSG non-constitutive** (`n = 13,359`, 6 event types) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | — | *(LSV junctions + IR; no TPMs)* | *(no `AF`/`AL`/`TS`/`TE` or TPMs)* |
+| **6-way shared non-constitutive** (`n = 3,672`) | **0.9568 / 0.9402 / 0.0653** | 0.9518 / 0.9350 / 0.0697 | 0.9188 / 0.9052 / 0.0966 | 0.6980 / 0.6802 / 0.1694 | 0.8924 / 0.8755 / 0.0948 | 0.9186 / 0.8876 / 0.0854 *(`JC`)* |
 | **6-way binary (`K0/K1`, `n = 1,635`)** | **0.9540 / 0.9365 / 0.0693** | 0.9492 / 0.9330 / 0.0734 | 0.9198 / 0.9064 / 0.0976 | 0.7403 / 0.7297 / 0.1560 | 0.9431 / 0.9259 / 0.0718 | 0.9499 / 0.9266 / 0.0719 *(`JC`)* |
 | **6-way complex (`K_n ≥ 2`, `n = 2,037`)** | **0.9604 / 0.9445 / 0.0621** | 0.9551 / 0.9376 / 0.0668 | 0.9181 / 0.9039 / 0.0958 | 0.6643 / 0.6390 / 0.1802 | 0.8569 / 0.8379 / 0.1133 | 0.8940 / 0.8549 / 0.0963 *(`JC`)* |
 | **MAJIQ v3 native SJ LSVs** (`n = 12,899`)² | **0.9602 / 0.9445 / 0.0645** *(`.jnc`)* | 0.9458 / 0.9289 / 0.0747 *(`.jnc`)* | — | — | **0.9603 / 0.9455 / 0.0632** | — |
 | **Gene / Isoform MedARD vs. `Salmon 2`** (`TPM ≥ 1`) | **0.0410 / 0.0678** *(3.2× / 2.1× closer)* | 0.1305 / 0.1399 | 0.1402 / 0.1557 | *(reference)* | *(no TPM output)* | *(no TPM output)* |
 
-*¹ `STAR + MAJIQ v3`: `357.0 s` STAR + `13.9 s` MAJIQ v3. ² Evaluated on MAJIQ v3's own 6,194 polymorphic annotated splice-junction LSVs (12,899 connections, including 4,343 complex `K ≥ 3`). On SUPPA2's exact binary PacBio truth (`n = 2,339`), Langur cuts MAE by 53% (`0.0734` vs. `0.1563`).*
+*¹ `STAR + MAJIQ v3`: `357.0 s` STAR + `13.9 s` MAJIQ v3. ² Evaluated on MAJIQ v3's own 6,194 non-constitutive annotated splice-junction LSVs (12,899 connections, including 4,343 complex `K ≥ 3`). On SUPPA2's exact binary PacBio truth (`n = 2,339`), Langur cuts MAE by 53% (`0.0734` vs. `0.1563`).*
 
 ### 2. Real Human Cohort Null Calibration & Batch Adjustment (Geuvadis, 14 Donors)
 
@@ -174,6 +174,6 @@ ln -s "$(pwd)/.agents/skills/langur" ~/.gemini/config/skills/langur
 ## Attribution, Citation & License
 
 - **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph representation and event taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018), alongside independent implementations of published statistical methods from Salmon, edgeR, DESeq2, and MAJIQ. For a modernized Julia 1.9 Whippet2 implementation (which requires a Julia 1.9 `.jls` index rather than legacy Whippet v1.6 `.jls` files), see **[Whippet2-turbo](https://github.com/koensci/Whippet2.jl)** ([DOI: 10.5281/zenodo.24519354](https://doi.org/10.5281/zenodo.24519354)).
-- **AI-Assisted Development:** Developed with AI-assisted design, coding, and review (**Google Gemini 4 Neon via Google Antigravity**), with all code, biological invariants, and benchmarks independently reviewed and verified by the author.
+- **AI-Assisted Development:** Developed with AI-assisted design, coding, and debugging (**Google Gemini 4 Neon via Google Antigravity**), with software behavior validated empirically via automated unit and parity tests and orthogonal long-read, eCLIP, and real-cohort benchmarks.
 - **Archive / Citation:** *Langur* (`v1.0.0`), Zenodo: https://doi.org/10.5281/zenodo.24615835.
 - **License:** MIT — see [LICENSE](LICENSE).
