@@ -642,7 +642,7 @@ dependencies = [
 
 [[package]]
 name = "langur-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "clap",
  "langur-core",
@@ -651,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "langur-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bytemuck",
  "crc32fast",
