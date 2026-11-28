@@ -133,9 +133,24 @@ Real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78
 
 *¹ Original `Whippet.jl` v1.6.2 required stripping raw SRA line-3 `+ERR...` headers to bare `+` (`timbitz/Whippet.jl#135`; `Whippet2-turbo` and `Langur` parse raw SRA FASTQs natively). Full stratified tables, sensitivity checks, `Whippet2-turbo` commit details, and Geuvadis `TS/TE` corner-interaction notes: **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.*
 
-### Real RF-Stranded RBP Knockdown & Production Checks
+### Real RF-Stranded RBP Knockdown & Orthogonal eCLIP Validation (`ENCODE PTBP1` KD, GRCh38, 5-Way)
 
-- **ENCODE `PTBP1` shRNA KD (`K562`, `ENCSR527IVX` vs. `ENCSR129RWD`, `255.3M` RF-stranded reads):** `--stranded-reverse` (`73.1%`) collapses **18.7×** under wrong-strand `--stranded` (`3.9%`) and eliminates opposite-strand antisense bleed (`TUBA1C`, `UBB`, `RBBP4`, `PIEZO1`, `FDPS`). Full 4-sample `--batch` runs in **`2m 59s` (`178.7 s`, `1.43M/s`) at `1.18 GB` RAM**; `delta` runs in **`1.39 s` (`129 MB`)**, calling **`58/58` Spliced hits (`0` spurious `TS`/`TE`)** at `FDR ≤ 0.05` while recovering `PTBP1` `3.2×` knockdown, `PTBP2` `8.2×` expression rescue + exon-10 NMD switch (`ΔΨ = +0.714`), **`MAP4K4` 9 bp microexon as the `#1` genome-wide hit (`ΔΨ = +0.742`, `FDR = 8.64e-6`)**, and canonical targets `SMAP1`, `GABBR1`, `RTN4`, `CTNND1`, `TPM1`, and `PICALM`.
+Real RF-stranded ENCODE `PTBP1` shRNA knockdown vs. matched control in K562 (`ENCSR527IVX` vs. `ENCSR129RWD`; 2 vs. 2 replicates, `127.6M` pairs = `255.3M` 100 bp reads, GRCh38 GENCODE v38 basic, 16T), evaluated against orthogonal **ENCODE K562 `PTBP1` eCLIP IDR peaks** (`ENCFF907HNN`, `7,797` peaks) and upstream `[-250, -20]` CU-rich PTBP1 tetramers (`TCTC`/`CTCT`/`TCTT`/`TTCT`; `PTBP1` KD `-3.2×`, `PTBP2` NMD rescue `+8.3×`):
+
+| Metric (`PTBP1` KD, 255.3M reads, 16T) | **Langur** *(`--stranded-reverse`)* | `Whippet2-turbo` *(unstranded¹)* | `Salmon 2.12` + `SUPPA2 2.4` *(`-l ISR`)* | `STAR 2.7.11b` + `MAJIQ v3.0.25` *(`REVERSE`)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(`fr-firststrand`)* |
+|---|---:|---:|---:|---:|---:|
+| **End-to-End Time** *(Quant + DS)* | **3m 17s** (`3m 02s`) | 4m 06s (`3m 38s`) | 6m 44s (`4m 33s`) | 23m 11s (`11m 33s`) | 24m 56s (`13m 24s`) |
+| **Peak Quant/Align RAM · Disk** | **1.35 GB** · **1.06 GB / 0 BAM** | 8.80 GB · 0.69 GB / 0 | 12.13 GB · 7.9 GB / 0 | **31.64 GB** · **28 GB + 15 GB BAM** | **31.64 GB** · **28 GB + 15 GB BAM** |
+| **Default Sig Events** *(Unique CE/SE · `% ΔΨ>0`)* | **58** *(45 · **73.3%**; `0` TS/TE)* | 70 *(55 · 74.5%)* | 1,518 *(578 · 57.6%)* | 359 (`≥0.20`) / 781 (`≥0.10`) *(149 · 75.2%)* | 2,130 *(1,489 · **49.7%**)* |
+| **Default `ΔΨ>0` Upstream CU Motif** *(Fold)* | **5.69/100bp (2.22×)** | 5.66 (2.21×) | 3.28 (1.22×) | 4.37 (1.74×, `≥0.20`) | 3.55 (1.39×, `JC`) |
+| **Top-100 Upstream CU Motif** *(Threshold-Free)* | **4.53/100bp (1.77×)** | 4.62 (1.81×) | 2.78 (1.04× n.s.) | 4.21 (1.68×) | 4.24 (1.66×, `JC`) |
+| **Top-100 eCLIP Up `[-300,0]` / Flank `±300`**² | **6.0% / 8.0%** | 6.0% / 7.0% | 1.0% / 3.0% *(n.s.)* | 5.0% / 7.0% | 5.0% / 10.0% |
+| **Top-100 Gene Consensus (`≥3/5`, `n=55`)** | **53/55 (96.4%)** | 53/55 (96.4%) | 3/55 (5.5%) | 48/55 (87.3%) | 45/55 (81.8%) |
+| **`MAP4K4` 9 bp Microexon / `PTBP2` ex10 NMD** | **`#1` (`+0.742`) / `#30` (`+0.714`)** | `#2` / `#38` | `#272` (`+0.370`) / *missed* | `#9` (`+0.709`) / *filtered*³ | `#7` (`+0.760`) / `#92` (`+0.679`) |
+
+*¹ `Whippet2-turbo` lacks `--stranded-reverse`, dropping `12.2M` pairs (`63.2%` vs. Langur `72.8%`) and creating `201` phantom antisense-bleed genes (`Langur < 1 TPM` vs. `W2 > 20 TPM`); Langur `--stranded-reverse` collapses **18.7×** under wrong-strand `--stranded` (`73.1% → 3.9%`) and removes antisense bleed (`TUBA1C`, `UBB`, `RBBP4`, `PIEZO1`, `FDPS`). ² Tool-matched expressed background eCLIP Up `[-300,0]` rates: `0.3%` CSG (`OR = 24.1` Langur Top-100), `0.6%` MAJIQ LSVs (`OR = 8.8`), `0.4%` rMATS (`OR = 11.9`), `0.4%` SUPPA2 (`OR = 2.3` n.s.); CU-motif backgrounds are nearly identical (`2.51–2.68/100bp`), and `ΔΨ < 0` negative controls are `0.91×–1.07×` n.s. across all tools. ³ `MAJIQ v3` filtered out `PTBP2` exon 10 (`passed = 0`) because NMD reduced control counts to `2` and `8` reads (`< 10`); `majiq-v3 heterogen` called `0` events at `BH FDR ≤ 0.05`.*
+
+### Additional Production Checks
 - **Single-end real human WTC11 (`45.8M` R1 reads, GRCh38):** `76.8 s`, **`0.97 GB` peak RAM**, `r = 0.9234 / MAE = 0.0875` vs. PacBio HiFi (`r = 0.9799` SE-vs-PE).
 - **Variable-length trimmed FASTQs & real `index --bam`:** Zero NaNs/Infs on `10–100 bp` + all-`'N'` + lowercase FASTQs (`r = 0.9929` PE); full GRCh38 `index --bam` with real ENCODE `PTBP1` BAM (`19.94 s`, `+615` BAM-derived nodes, `389` supported PSI rows, `100` `ALT_UNIQ` novel junctions).
 - **CI:** Verified on Linux (`x86_64`) and macOS (`arm64`) with `42/42` tests and zero Clippy warnings (`-D warnings`).
