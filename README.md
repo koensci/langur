@@ -1,25 +1,25 @@
 # Langur
 
 [![CI](https://github.com/koensci/langur/actions/workflows/ci.yml/badge.svg)](https://github.com/koensci/langur/actions/workflows/ci.yml)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24615835.svg)](https://doi.org/10.5281/zenodo.24615835)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Fast, statistically calibrated Contiguous Splice Graph (CSG) quantification and differential splicing for bulk short-read RNA-seq in Rust.**
 
-`langur` (`index`, `inspect`, `quant`, `delta`) profiles both binary ($K_1$) and complex ($K_n \ge 2$) alternative splicing—plus gene and isoform expression—directly from FASTQ files without genome alignment or BAM generation.
+`langur` (`index`, `inspect`, `quant`, `delta`) profiles both binary ($K_1$) and complex ($K_n \ge 2$) alternative splicing—alongside gene and isoform expression—directly from raw FASTQ files in ~1.4 GB of memory, with zero BAM files and 100% bit-for-bit determinism.
 
-- **Zero-copy `mmap` index (`.lidx`, `< 1 ms` load):** Canonical minimizers, annotated junction-bridge seeds, and selective genomic decoys.
-- **Hybrid spliced aligner:** Two-tier repetitive minimizer screening, fast ungapped path with zero-allocation stack-banded Gotoh gapped fallback, 1-SNP junction tolerance, and strict-inequality decoy filtering (`decoy > CSG`).
-- **Two-stage quantification (`quant`):** Joint Connected-Component Variational Bayes EM (`CC-VBEM`) with unified 5'-hexamer + 20-bin GC bias correction (`--biascorrect`), microexon-safe effective lengths, PCR-stack soft-capping, and collapsed Gibbs inferential variance (`Inf_Var`, col. 15 of `.psi.gz`).
-- **Covariate-aware Beta-Binomial GLM (`delta`):** Two-group (`-a`/`-b`) and multivariable DESeq2-style formulas (`--design`/`--formula`/`--test`) with constitutive-event exclusion and Spliced vs. Tandem UTR (`TS`/`TE`) stratified Cox–Reid Empirical Bayes dispersion shrinkage.
-- **100% bit-for-bit deterministic** across thread counts and standalone vs. `--batch` runs.
+- **Instant memory-mapped index (`.lidx`, `< 1 ms` load):** Combines canonical minimizers, annotated junction-bridge seeds, and selective genomic decoys into a compact 1.06 GB GRCh38 index.
+- **Gapped, strand-aware spliced alignment:** Pairs fast ungapped matching with banded Gotoh indel recovery, 1-SNP splice-boundary tolerance, strict-inequality pseudogene filtering, and native unstranded / FR / RF (`--stranded-reverse`) library support.
+- **Joint expression and local splicing quantification (`quant`):** Uses connected-component variational Bayes EM with 5'-hexamer and GC bias correction (`--biascorrect`), unbiased 3–27 bp microexon scoring, and collapsed Gibbs inferential variance (`Inf_Var`) at complex splice hubs.
+- **Calibrated differential splicing (`delta`):** Fits covariate-aware Beta-Binomial GLMs (two-group `-a`/`-b` or DESeq2-style `--design`/`--formula`/`--test`) with event-class stratified Empirical Bayes dispersion shrinkage (Spliced vs. Tandem UTR) to eliminate real-cohort false positives and adjust for batch or donor effects.
 
-Full algorithmic derivations, ablations, and benchmarks: **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.
+For full algorithmic details, mathematical derivations, and complete benchmark tables, see **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.
 
 ---
 
 ## Build & Test
 
-Requires Rust Edition 2021 (`cargo >= 1.75`). Optional: `igzip` (Intel ISA-L) accelerates `.fq.gz` streaming (auto-falls back to built-in `zlib-ng`).
+Requires Rust Edition 2021 (`cargo >= 1.75`). Optional: `igzip` (Intel ISA-L) accelerates `.fq.gz` streaming and automatically falls back to built-in `zlib-ng`.
 
 ```bash
 # Recommended: enable host-native CPU optimizations (Apple Silicon arm64 or x86_64 AVX2)
@@ -39,7 +39,7 @@ langur -t 16 index \
   --fasta Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
   --gtf Homo_sapiens.GRCh38.gtf.gz \
   -x human_grch38
-# Optional de novo junctions: add --bam cohort_merged.bam --bam-min-reads 3
+# Optional novel splice sites from aligned BAMs: add --bam cohort_merged.bam --bam-min-reads 3
 # Writes human_grch38.{lidx,exons.tsv.gz,paths.tsv.gz}
 
 langur inspect -x human_grch38.lidx
@@ -100,65 +100,65 @@ langur -t 16 delta \
 
 ## Benchmark Highlights
 
-### Real Human RNA-seq vs. PacBio HiFi Ground Truth (LRGASP WTC11, GRCh38, 6-Way)
+All full-human GRCh38 benchmarks (GENCODE v38 basic, 60,649 genes) were run on a 16-core Apple M4 Max (64 GB RAM; 16 threads for multithreaded tools; disk sizes in decimal GB, $1\text{ GB} = 10^9$ bytes). Exact software versions and full commands are documented in [docs/WHITEPAPER.md](docs/WHITEPAPER.md).
 
-Real human WTC11 Illumina paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1: `45.78M` pairs = `91.57M` reads, `--biascorrect`, 16T) on full GENCODE v38 basic (`60,649` genes, `111,832` transcripts) vs. pooled 3-replicate matched PacBio HiFi Iso-Seq (ENCODE `ENCSR507JOF`; `LR ≥ 20`, `SR ≥ 10`; PSI accuracy reported as `r / ρ / MAE`):
+### 1. Real Human Long-Read Validation (LRGASP WTC11, 6-Way)
 
-| Metric (GRCh38 / WTC11) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(16T)* | `Whippet.jl` v1.6.2 *(1T)* | `Salmon 2.12.0` + `SUPPA2 2.4` *(16T)* | `STAR 2.7.11b` + `MAJIQ v3.0.25` *(16T)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(16T)* |
+Evaluated on real human WTC11 paired-end RNA-seq (ENCODE `ENCSR673UKZ` Rep 1, 91.6M reads, `--biascorrect`) against pooled 3-replicate matched PacBio HiFi Iso-Seq alignments (ENCODE `ENCSR507JOF`; PSI accuracy reported as `r / ρ / MAE`):
+
+| Metric (GRCh38 / WTC11) | **Langur** *(16T)* | `Whippet2-turbo` *(16T)* | `Whippet.jl` *(1T)* | `Salmon 2 + SUPPA2` *(16T)* | `STAR + MAJIQ v3` *(16T)* | `STAR + rMATS-turbo` *(16T)* |
 |---|---:|---:|---:|---:|---:|---:|
-| **Index / Setup** *(uncompressed FASTA)* | **14.8 s** · **5.19 GB** · **1.06 GB** | 28.6 s · 5.33 GB · 691 MB | 753.8 s · 9.87 GB · 634 MB | 110.8 s · 17.93 GB · **8.51 GB** | 700.7 s · **35.09 GB** · **29.5 GB** | 683.1 s · 35.09 GB · **29.5 GB** |
-| **End-to-End** *(91.6M reads)* | **72.7 s** (`1.26M/s`) · **1.35 GB** · **0 GB BAM** | 82.3 s · 9.10 GB · 0 GB | 1,467.4 s · 7.00 GB · 0 GB | 190.5 s · **12.24 GB** · 0 GB | 370.9 s¹ · **31.64 GB** · **5.1 GB BAM** | 526.1 s · **31.64 GB** · **5.1 GB BAM** |
-| **Mapped Pairs** *(of 45.78M)* | **30.00M (65.5%)** | 24.70M (53.9%) | 24.70M (53.9%) | **30.44M (66.5%)** | 30.55M (66.7%) unique + 1.87M multi | 30.55M (66.7%) unique + 1.87M multi |
-| **3-Way CSG Polymorphic** (`n = 13,359`, 6 motifs) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | — | *(LSV junctions + IR; no TPMs)* | *(no `AF`/`AL`/`TS`/`TE` or TPMs)* |
-| **6-Way Shared Polymorphic** (`n = 3,672`) | **0.9568 / 0.9402 / 0.0653** | 0.9518 / 0.9350 / 0.0697 | 0.9188 / 0.9052 / 0.0966 | 0.6980 / 0.6802 / 0.1694 | 0.8924 / 0.8755 / 0.0948 | 0.9186 / 0.8876 / 0.0854 *(`JC`)* |
-| **6-Way Binary (`K0/K1`, `n = 1,635`)** | **0.9540 / 0.9365 / 0.0693** | 0.9492 / 0.9330 / 0.0734 | 0.9198 / 0.9064 / 0.0976 | 0.7403 / 0.7297 / 0.1560 | 0.9431 / 0.9259 / 0.0718 | 0.9499 / 0.9266 / 0.0719 *(`JC`)* |
-| **6-Way Complex (`K_n ≥ 2`, `n = 2,037`)** | **0.9604 / 0.9445 / 0.0621** | 0.9551 / 0.9376 / 0.0668 | 0.9181 / 0.9039 / 0.0958 | 0.6643 / 0.6390 / 0.1802 | 0.8569 / 0.8379 / 0.1133 | 0.8940 / 0.8549 / 0.0963 *(`JC`)* |
-| **MAJIQ v3 Native SJ LSVs** (`n = 12,899` conns)² | **0.9602 / 0.9445 / 0.0645** *(`.jnc`)* | 0.9458 / 0.9289 / 0.0747 *(`.jnc`)* | — | — | **0.9603 / 0.9455 / 0.0632** | — |
+| **Index time / disk** | **14.8 s / 1.06 GB** | 28.6 s / 0.69 GB | 753.8 s / 0.63 GB | 110.8 s / 8.51 GB | 700.7 s / 29.5 GB | 683.1 s / 29.5 GB |
+| **End-to-end time / RAM** | **72.7 s / 1.35 GB** | 82.3 s / 9.10 GB | 1,467.4 s / 7.00 GB | 190.5 s / 12.24 GB | 370.9 s¹ / 31.64 GB *(+5.1 GB BAM)* | 526.1 s / 31.64 GB *(+5.1 GB BAM)* |
+| **Mapped pairs** *(of 45.78M)* | **30.00M (65.5%)** | 24.70M (53.9%) | 24.70M (53.9%) | **30.44M (66.5%)** | 30.55M (66.7%) uniq. + 1.87M multi | 30.55M (66.7%) uniq. + 1.87M multi |
+| **3-way CSG polymorphic** (`n = 13,359`, 6 event types) | **0.9338 / 0.8715 / 0.0789** | 0.9316 / 0.8689 / 0.0821 | 0.9064 / 0.8473 / 0.1023 | — | *(LSV junctions + IR; no TPMs)* | *(no `AF`/`AL`/`TS`/`TE` or TPMs)* |
+| **6-way shared polymorphic** (`n = 3,672`) | **0.9568 / 0.9402 / 0.0653** | 0.9518 / 0.9350 / 0.0697 | 0.9188 / 0.9052 / 0.0966 | 0.6980 / 0.6802 / 0.1694 | 0.8924 / 0.8755 / 0.0948 | 0.9186 / 0.8876 / 0.0854 *(`JC`)* |
+| **6-way binary (`K0/K1`, `n = 1,635`)** | **0.9540 / 0.9365 / 0.0693** | 0.9492 / 0.9330 / 0.0734 | 0.9198 / 0.9064 / 0.0976 | 0.7403 / 0.7297 / 0.1560 | 0.9431 / 0.9259 / 0.0718 | 0.9499 / 0.9266 / 0.0719 *(`JC`)* |
+| **6-way complex (`K_n ≥ 2`, `n = 2,037`)** | **0.9604 / 0.9445 / 0.0621** | 0.9551 / 0.9376 / 0.0668 | 0.9181 / 0.9039 / 0.0958 | 0.6643 / 0.6390 / 0.1802 | 0.8569 / 0.8379 / 0.1133 | 0.8940 / 0.8549 / 0.0963 *(`JC`)* |
+| **MAJIQ v3 native SJ LSVs** (`n = 12,899`)² | **0.9602 / 0.9445 / 0.0645** *(`.jnc`)* | 0.9458 / 0.9289 / 0.0747 *(`.jnc`)* | — | — | **0.9603 / 0.9455 / 0.0632** | — |
 | **Gene / Isoform MedARD vs. `Salmon 2`** (`TPM ≥ 1`) | **0.0410 / 0.0678** *(3.2× / 2.1× closer)* | 0.1305 / 0.1399 | 0.1402 / 0.1557 | *(reference)* | *(no TPM output)* | *(no TPM output)* |
 
-*Memory figures report macOS `/usr/bin/time -l` peak memory footprint. ¹ `STAR + MAJIQ v3.0.25`: `357.0 s` STAR + `13.9 s` MAJIQ v3 (`sj 8.88 s · build 1.39 s · psi-coverage 1.66 s · quantify 1.94 s`, `653 MB` peak, plus `~10 s` `.bai`). ² Evaluated directly on MAJIQ v3's own `6,194` polymorphic annotated splice-junction LSVs (`12,899` connections, incl. `4,343` complex `K ≥ 3`: Langur `.jnc.gz` `0.9525 / 0.0661` vs. `STAR + MAJIQ v3` `0.9538 / 0.0651`). Even under `SUPPA2`'s own binary PacBio truth (`n = 2,339`), Langur scores `0.9403 / 0.0734` vs. `Salmon 2 + SUPPA2` `0.7393 / 0.1563` (-53% MAE).*
+*¹ `STAR + MAJIQ v3`: `357.0 s` STAR + `13.9 s` MAJIQ v3. ² Evaluated on MAJIQ v3's own 6,194 polymorphic annotated splice-junction LSVs (12,899 connections, including 4,343 complex `K ≥ 3`). On SUPPA2's exact binary PacBio truth (`n = 2,339`), Langur cuts MAE by 53% (`0.0734` vs. `0.1563`).*
 
-### Real Human Cohort Null Calibration & Batch Adjustment (Geuvadis `ERP001942`, GRCh38)
+### 2. Real Human Cohort Null Calibration & Batch Adjustment (Geuvadis, 14 Donors)
 
-14 real human CEU LCL donors (`UNIGE` `6F + 2M`, `ICMB` `2F + 4M`; `706.9M` 75 bp reads, 16T, `--biascorrect`) — all 10 exact 3v3 same-condition null splits (`6F UNIGE`, `-r 5 -s 2`) and imbalanced multivariable batch adjustment (`~ center + sex`):
+Evaluated on 14 human LCL donors (`ERP001942`, 706.9M reads, imbalanced across two sequencing centers `UNIGE` and `ICMB`) across all 10 exact 3v3 same-condition null splits and multivariable batch adjustment (`~ center + sex`):
 
-| Metric (Geuvadis 14-Donor Cohort, GRCh38) | **Langur** *(Rust, 16T)* | `Whippet2-turbo` *(16T)* | Original `Whippet.jl` v1.6.2 *(1T, `+`-stripped)*¹ |
+| Metric (Geuvadis 14-Donor Cohort) | **Langur** *(16T)* | `Whippet2-turbo` *(16T)* | Legacy `Whippet.jl` *(1T)*¹ |
 |---|---:|---:|---:|
-| **14-Sample `quant`** (706.9M reads) | **347.3 s** (`2.03M/s`) · **1.39 GB** | 429.2 s (`1.65M/s`) · 9.88 GB | **11,145.4 s** (`3h 06m` serial, `63.4k/s`) · 6.30 GB |
-| **Mapped Pairs** *(of 353.4M)* | **86.05%** (`304.2M`; **+43.8M** vs. W1/W2) | 73.66% (`260.3M`) | 73.66% (`260.3M`, exact W2 parity) |
-| **10 Null Splits — Mean / Med FPs** (`FDR ≤ 0.05` or `P ≥ 0.95`) | **0.2 / 0.0** *(9/10 splits = 0 FPs)* | 0.8 / 0.0 *(4× more FPs)* | **1,508.9 / 1,402.0** *(1,202.9 @ \|ΔΨ\| ≥ 0.1; 92% `TS`/`TE`)* |
-| **10 Null Splits — FPR `@p≤0.05`** (All / Spliced) | **1.38% / 0.70%** | 1.44% / 0.83% | 1.11% / 0.12% *(call rate; `120.1` spliced FPs)* |
-| **14-Sample `delta` (`~ center + sex`)** | **7.02 s** · **177 MB** | 46.51 s · 2.86 GB | 104.85 s · 1.23 GB *(unadj. only)* |
-| **Batch Adjustment (`~ center + sex`)** | **-15.7%** spliced $\hat\phi$ · **-35%** center `\|ΔΨ\|` bias · **2×** `chrX/Y` hits (`1.67×` spliced enrich.) | -13.9% spliced $\hat\phi$ · 1.09× spliced `chrX/Y` enrich. | **90** unadj. calls (`87` `TS`/`TE`, `0.68×` depleted `chrX/Y`, `0` spliced `chrX/Y`) |
+| **14-sample `quant`** (706.9M reads) | **5m 47s** (`2.03M/s`) · **1.39 GB** | 7m 09s · 9.88 GB | 3h 06m serial · 6.30 GB |
+| **Mapped pairs** *(of 353.4M)* | **86.05%** *(+43.8M vs. W1/W2)* | 73.66% | 73.66% |
+| **10 null splits — mean / median FPs** | **0.2 / 0.0** *(0 in 9/10 splits)* | 0.8 / 0.0 *(4× more)* | **1,508.9 / 1,402.0** *(92% `TS`/`TE`)* |
+| **10 null splits — FPR `@p≤0.05`** (All / Spliced) | **1.38% / 0.70%** | 1.44% / 0.83% | 1.11% / 0.12% *(call rate; 120.1 spliced FPs)* |
+| **14-sample `delta` (`~ center + sex`)** | **7.0 s** · **177 MB** | 46.5 s · 2.86 GB | 104.9 s · 1.23 GB *(unadjusted only)* |
+| **Batch adjustment (`~ center + sex`)** | **-15.7%** spliced $\hat\phi$ · **-35%** center bias · **2×** `chrX/Y` hits | -13.9% spliced $\hat\phi$ · 1.09× `chrX/Y` enrich. | 90 unadj. calls *(97% `TS`/`TE`, 0 spliced `chrX/Y`)* |
 
-*¹ Original `Whippet.jl` v1.6.2 required stripping raw SRA line-3 `+ERR...` headers to bare `+` (`timbitz/Whippet.jl#135`; `Whippet2-turbo` and `Langur` parse raw SRA FASTQs natively). Full stratified tables, sensitivity checks, `Whippet2-turbo` commit details, and Geuvadis `TS/TE` corner-interaction notes: **[docs/WHITEPAPER.md](docs/WHITEPAPER.md)**.*
+*¹ Legacy `Whippet.jl` crashed on raw SRA FASTQ headers and required line-3 header stripping; `Whippet2-turbo` and `Langur` parse raw SRA FASTQs natively.*
 
-### Real RF-Stranded RBP Knockdown & Orthogonal eCLIP Validation (`ENCODE PTBP1` KD, GRCh38, 5-Way)
+### 3. Real Reverse-Stranded PTBP1 Knockdown & eCLIP Validation (ENCODE K562, 5-Way)
 
-Real RF-stranded ENCODE `PTBP1` shRNA knockdown vs. matched control in K562 (`ENCSR527IVX` vs. `ENCSR129RWD`; 2 vs. 2 replicates, `127.6M` pairs = `255.3M` 100 bp reads, GRCh38 GENCODE v38 basic, 16T), evaluated against orthogonal **ENCODE K562 `PTBP1` eCLIP IDR peaks** (`ENCFF907HNN`, `7,797` peaks) and upstream `[-250, -20]` CU-rich PTBP1 tetramers (`TCTC`/`CTCT`/`TCTT`/`TTCT`; `PTBP1` KD `-3.2×`, `PTBP2` NMD rescue `+8.3×`):
+Evaluated on RF-stranded ENCODE `PTBP1` shRNA knockdown vs. control in K562 (`ENCSR527IVX` vs. `ENCSR129RWD`, 2 vs. 2 replicates, 255.3M reads) using orthogonal **ENCODE K562 `PTBP1` eCLIP peaks** (`ENCFF907HNN`) and upstream CU-rich tetramer enrichment:
 
-| Metric (`PTBP1` KD, 255.3M reads, 16T) | **Langur** *(`--stranded-reverse`)* | `Whippet2-turbo` *(unstranded¹)* | `Salmon 2.12` + `SUPPA2 2.4` *(`-l ISR`)* | `STAR 2.7.11b` + `MAJIQ v3.0.25` *(`REVERSE`)* | `STAR 2.7.11b` + `rMATS-turbo v4.3.0` *(`fr-firststrand`)* |
-|---|---:|---:|---:|---:|---:|
-| **End-to-End Time** *(Quant + DS)* | **3m 17s** (`3m 02s`) | 4m 06s (`3m 38s`) | 6m 44s (`4m 33s`) | 23m 11s (`11m 33s`) | 24m 56s (`13m 24s`) |
-| **Peak Quant/Align RAM · Disk** | **1.35 GB** · **1.06 GB / 0 BAM** | 8.80 GB · 0.69 GB / 0 | 12.13 GB · 7.9 GB / 0 | **31.64 GB** · **28 GB + 15 GB BAM** | **31.64 GB** · **28 GB + 15 GB BAM** |
-| **Default Sig Events** *(Unique CE/SE · `% ΔΨ>0`)* | **58** *(45 · **73.3%**; `0` TS/TE)* | 70 *(55 · 74.5%)* | 1,518 *(578 · 57.6%)* | 359 (`≥0.20`) / 781 (`≥0.10`) *(149 · 75.2%)* | 2,130 *(1,489 · **49.7%**)* |
-| **Default `ΔΨ>0` Upstream CU Motif** *(Fold)* | **5.69/100bp (2.22×)** | 5.66 (2.21×) | 3.28 (1.22×) | 4.37 (1.74×, `≥0.20`) | 3.55 (1.39×, `JC`) |
-| **Top-100 Upstream CU Motif** *(Threshold-Free)* | **4.53/100bp (1.77×)** | 4.62 (1.81×) | 2.78 (1.04× n.s.) | 4.21 (1.68×) | 4.24 (1.66×, `JC`) |
-| **Top-100 eCLIP Up `[-300,0]` / Flank `±300`**² | **6.0% / 8.0%** | 6.0% / 7.0% | 1.0% / 3.0% *(n.s.)* | 5.0% / 7.0% | 5.0% / 10.0% |
-| **Top-100 Gene Consensus (`≥3/5`, `n=55`)** | **53/55 (96.4%)** | 53/55 (96.4%) | 3/55 (5.5%) | 48/55 (87.3%) | 45/55 (81.8%) |
-| **`MAP4K4` 9 bp Microexon / `PTBP2` ex10 NMD** | **`#1` (`+0.742`) / `#30` (`+0.714`)** | `#2` / `#38` | `#272` (`+0.370`) / *missed* | `#9` (`+0.709`) / *filtered*³ | `#7` (`+0.760`) / `#92` (`+0.679`) |
+| Pipeline (`PTBP1` KD, 2 vs. 2) | End-to-End Time | Peak Quant RAM / Disk | Default `ΔΨ>0` CU Motif *(Fold)* | Top-100 CU Motif *(Fold)* | Top-100 eCLIP Up / Flank² | Top-100 Consensus (`n=55`) | `MAP4K4` 9 bp / `PTBP2` ex10 |
+|---|---:|---:|---:|---:|---:|---:|---|
+| **`Langur`** (`--stranded-reverse`) | **3m 17s** | **1.35 GB / 1.1 GB (0 BAM)** | **5.69 (2.22×)** | **4.53 (1.77×)** | **6.0% / 8.0%** | **53/55 (96.4%)** | **`#1` (`+0.74`) / `#30` (`+0.71`)** |
+| `Whippet2-turbo` *(unstranded¹)* | 4m 06s | 8.80 GB / 0.7 GB (0 BAM) | 5.66 (2.21×) | 4.62 (1.81×) | 6.0% / 7.0% | 53/55 (96.4%) | `#2` / `#38` *(201 phantom genes)* |
+| `STAR + MAJIQ v3` (`REVERSE`) | 23m 11s | 31.64 GB / 45.6 GB | 4.37 (1.74×) | 4.21 (1.68×) | 5.0% / 7.0% | 48/55 (87.3%) | `#9` (`+0.71`) / *filtered³* |
+| `STAR + rMATS-turbo` (`fr-first`) | 24m 56s | 31.64 GB / 45.6 GB | 3.55 (1.39×) | 4.24 (1.66×) | 5.0% / 10.0% | 45/55 (81.8%) | `#7` (`+0.76`) / `#92` (`+0.68`) |
+| `Salmon 2 + SUPPA2` (`-l ISR`) | 6m 44s | 12.13 GB / 8.5 GB (0 BAM) | 3.28 (1.22×) | 2.78 (1.04× ns) | 1.0% / 3.0% ns | 3/55 (5.5%) | `#272` (`+0.37`) / *missed* |
 
-*¹ `Whippet2-turbo` lacks `--stranded-reverse`, dropping `12.2M` pairs (`63.2%` vs. Langur `72.8%`) and creating `201` phantom antisense-bleed genes (`Langur < 1 TPM` vs. `W2 > 20 TPM`); Langur `--stranded-reverse` collapses **18.7×** under wrong-strand `--stranded` (`73.1% → 3.9%`) and removes antisense bleed (`TUBA1C`, `UBB`, `RBBP4`, `PIEZO1`, `FDPS`). ² Tool-matched expressed background eCLIP Up `[-300,0]` rates: `0.3%` CSG (`OR = 24.1` Langur Top-100), `0.6%` MAJIQ LSVs (`OR = 8.8`), `0.4%` rMATS (`OR = 11.9`), `0.4%` SUPPA2 (`OR = 2.3` n.s.); CU-motif backgrounds are nearly identical (`2.51–2.68/100bp`), and `ΔΨ < 0` negative controls are `0.91×–1.07×` n.s. across all tools. ³ `MAJIQ v3` filtered out `PTBP2` exon 10 (`passed = 0`) because NMD reduced control counts to `2` and `8` reads (`< 10`); `majiq-v3 heterogen` called `0` events at `BH FDR ≤ 0.05`.*
+*¹ `Whippet2-turbo` lacks `--stranded-reverse`, losing 12.2M pairs and creating 201 phantom antisense-bleed genes; Langur's `--stranded-reverse` separates correct vs. wrong strand 18.7-fold. ² Background upstream eCLIP overlap is 0.3% (CSG), 0.6% (MAJIQ LSVs), and 0.4% (rMATS/SUPPA2); CU-motif background is ~2.55/100 bp across all tools. ³ `MAJIQ v3` filtered `PTBP2` exon 10 because NMD reduced control reads below its 10-read threshold; `MAJIQ heterogen` (designed for larger cohorts) called 0 events at `BH FDR ≤ 0.05` on this 2-versus-2 design.*
 
 ### Additional Production Checks
-- **Single-end real human WTC11 (`45.8M` R1 reads, GRCh38):** `76.8 s`, **`0.97 GB` peak RAM**, `r = 0.9234 / MAE = 0.0875` vs. PacBio HiFi (`r = 0.9799` SE-vs-PE).
-- **Variable-length trimmed FASTQs & real `index --bam`:** Zero NaNs/Infs on `10–100 bp` + all-`'N'` + lowercase FASTQs (`r = 0.9929` PE); full GRCh38 `index --bam` with real ENCODE `PTBP1` BAM (`19.94 s`, `+615` BAM-derived nodes, `389` supported PSI rows, `100` `ALT_UNIQ` novel junctions).
-- **CI:** Verified on Linux (`x86_64`) and macOS (`arm64`) with `42/42` tests and zero Clippy warnings (`-D warnings`).
+- **3–27 bp microexons:** Unbiased across standard microexons (`90/90` captured, `-0.0024` mean bias under boundary SNPs) and 7–33× cleaner than `Whippet2-turbo` / 3.4–5.0× cleaner than `STAR + rMATS-turbo` on adversarial competing `AD`/`AA` loci.
+- **Single-end, trimmed FASTQs & `index --bam`:** Single-end WTC11 (`45.8M` reads) finishes in `76.8 s` at `0.97 GB` RAM (`r = 0.9234` vs. PacBio); variable-length `10–100 bp` trimmed FASTQs run with zero numerical failures; real ENCODE `index --bam` augmentation imports `615` novel splice nodes in `19.9 s`.
+- **Cross-platform CI:** Verified on Linux (`x86_64`) and macOS (`arm64`) with `42/42` tests and zero Clippy warnings (`-D warnings`).
 
 ---
 
-## Attribution, Transparency & License
+## Attribution, Citation & License
 
-- **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph (CSG) representation and motif taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018; `Whippet.jl`), alongside independent implementations of published statistical concepts from `Salmon` and `edgeR`/`DESeq2`, plus overhang-diversity QC for PCR junction-stack artifacts highlighted in `MAJIQ`. Users needing 100% drop-in compatibility with legacy Julia 1.9 `.jls` indexes can use [Whippet2-turbo](https://github.com/koensci/Whippet2.jl).
-- **AI-Assisted Development:** Developed iteratively with AI-assisted coding and review (**Google Gemini**), with all biological invariants and benchmarks verified via automated unit, parity, and full-human test suites.
+- **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph representation and event taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018), alongside independent implementations of published statistical methods from Salmon, edgeR, DESeq2, and MAJIQ. For 100% drop-in compatibility with legacy Julia 1.9 `.jls` indexes, see **[Whippet2-turbo](https://github.com/koensci/Whippet2.jl)** ([DOI: 10.5281/zenodo.24519354](https://doi.org/10.5281/zenodo.24519354)).
+- **AI-Assisted Development:** Developed with AI-assisted design, coding, and review (**Google Gemini 4 Neon via Google Antigravity**), with all code, biological invariants, and benchmarks independently reviewed and verified by the author.
+- **Archive / Citation:** *Langur* (`v1.0.0`), Zenodo: https://doi.org/10.5281/zenodo.24615835.
 - **License:** MIT — see [LICENSE](LICENSE).
