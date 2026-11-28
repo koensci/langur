@@ -156,9 +156,24 @@ Evaluated on RF-stranded ENCODE `PTBP1` shRNA knockdown vs. control in K562 (`EN
 
 ---
 
+## AI Agent Skill (Claude, Codex, Gemini)
+
+This repository includes a portable Agent Skill at [`.agents/skills/langur/`](.agents/skills/langur/SKILL.md) (exact CLI flags, strandness rules, `--batch` manifests, `--design` GLM formulas, and output schemas) compatible with Claude Code, OpenAI Codex, Gemini CLI / Antigravity, and Cursor:
+
+```bash
+# Auto-discovered inside this repo by Antigravity / Gemini, Codex, and Cursor.
+# To install globally across all projects:
+mkdir -p ~/.agents/skills ~/.claude/skills ~/.gemini/config/skills
+ln -s "$(pwd)/.agents/skills/langur" ~/.agents/skills/langur
+ln -s "$(pwd)/.agents/skills/langur" ~/.claude/skills/langur
+ln -s "$(pwd)/.agents/skills/langur" ~/.gemini/config/skills/langur
+```
+
+---
+
 ## Attribution, Citation & License
 
-- **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph representation and event taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018), alongside independent implementations of published statistical methods from Salmon, edgeR, DESeq2, and MAJIQ. For 100% drop-in compatibility with legacy Julia 1.9 `.jls` indexes, see **[Whippet2-turbo](https://github.com/koensci/Whippet2.jl)** ([DOI: 10.5281/zenodo.24519354](https://doi.org/10.5281/zenodo.24519354)).
+- **Credit & Lineage:** Independent Rust re-architecture building on the Contiguous Splice Graph representation and event taxonomy pioneered by **Tim Sterne-Weiler** and colleagues in **Whippet** (*Molecular Cell*, 2018), alongside independent implementations of published statistical methods from Salmon, edgeR, DESeq2, and MAJIQ. For a modernized Julia 1.9 Whippet2 implementation (which requires a Julia 1.9 `.jls` index rather than legacy Whippet v1.6 `.jls` files), see **[Whippet2-turbo](https://github.com/koensci/Whippet2.jl)** ([DOI: 10.5281/zenodo.24519354](https://doi.org/10.5281/zenodo.24519354)).
 - **AI-Assisted Development:** Developed with AI-assisted design, coding, and review (**Google Gemini 4 Neon via Google Antigravity**), with all code, biological invariants, and benchmarks independently reviewed and verified by the author.
 - **Archive / Citation:** *Langur* (`v1.0.0`), Zenodo: https://doi.org/10.5281/zenodo.24615835.
 - **License:** MIT — see [LICENSE](LICENSE).
